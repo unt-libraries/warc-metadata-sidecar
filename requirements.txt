@@ -1,0 +1,4 @@
+warcio==1.7.4
+requests==2.26.0
+opf-fido
+chardet
