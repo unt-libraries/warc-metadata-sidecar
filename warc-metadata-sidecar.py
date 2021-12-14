@@ -1,9 +1,12 @@
 import argparse
+import io
 import os
 import sys
 
-from chardet.universaldetector import UniversalDetector
+# import cchardet as chardet  # https://pypi.org/project/cchardet/
+import chardet
 from warcio.archiveiterator import ArchiveIterator
+from warcio.recordloader import ArcWarcRecord
 from fido.fido import Fido
 
 
@@ -47,20 +50,25 @@ def metadata_sidecar(archive_dir, warc_file):
                 # this is only if we also process arc files
                 elif record.format == 'arc':
                     url = record.rec_headers.get_header('uri')
+
+                # https://github.com/webrecorder/warcio/issues/64
+                rawPayload = io.BytesIO(record.raw_stream.read())
+                if record.http_headers:
+                    recordCopy = ArcWarcRecord(record.format, record.rec_type, record.rec_headers, rawPayload, record.http_headers, record.content_type, record.length)
+                    decodedPayload = recordCopy.content_stream().read()
+                    rawPayload.seek(0)
+                else:
+                    decodedPayload = rawPayload
                 
                 print(url)
+
+                result = chardet.detect(decodedPayload)
+                print(result)
                 
-                fido.identify_stream(record.raw_stream, url)
+                fido.identify_stream(rawPayload, url)
                 print(fido.puid, fido.mime)
                 puid = fido.puid
                 mime = fido.mime
-
-                detector = UniversalDetector()
-                for line in record.content_stream().read():
-                    detector.feed(line)
-                    if detector.done: break
-                detector.close()
-                print(detector.result)
                    
             # else:
             #     print('Error with rec_type')
@@ -69,8 +77,7 @@ def metadata_sidecar(archive_dir, warc_file):
         # create sidecar and store data and save new file
         # maybe using warcio warcwriter create_warc_record
 
-    print('Completed')
-    print(record_count)
+    print('Completed ', record_count)
 
 def main():
     parser = argparse.ArgumentParser()
