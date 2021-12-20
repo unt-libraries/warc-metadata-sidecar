@@ -1,3 +1,4 @@
 warcio==1.7.4
 opf-fido==1.4.1
 chardet==4.0.0
+pycld2==0.41
