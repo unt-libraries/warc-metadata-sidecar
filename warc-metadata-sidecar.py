@@ -1,7 +1,10 @@
 import argparse
 import io
+import logging
 import os
 import re
+import time
+from datetime import timedelta
 
 import chardet
 import pycld2 as cld2
@@ -39,121 +42,137 @@ class ExtendFido(Fido):
             self.mime = mimetype
 
 
+def find_mime_and_puid(fido, rawPayload, url):
+    """ A method that uses fido to find the mimetype and preservation identifier."""
+    fido.identify_stream(rawPayload, url)
+    print(fido.puid, fido.mime)
+
+
+def find_character_set(decodedPayload):
+    """ A method that uses chardet to find the character set of the payload."""
+    result = chardet.detect(decodedPayload)
+    result_dict = {'encoding': result['encoding'],
+                   'confidence': result['confidence']
+                   }
+    print(result)
+    return result_dict
+
+
+def find_language(decodedPayload):
+    text = decodedPayload.decode('utf-8-sig', 'ignore')
+    isReliable, textBytesFound, details = cld2.detect(text)
+    lang_cld = {'reliable': isReliable,
+                'text-bytes': textBytesFound,
+                'languages': {
+                    'name': details[0][0],
+                    'code': details[0][1],
+                    'text-covered': details[0][2],
+                    'score': details[0][3]}
+                }
+    print(lang_cld)
+    return lang_cld
+
 def metadata_sidecar(archive_dir, warc_file):
-    fido = ExtendFido()
+    start = time.time()
     if not os.path.isdir(archive_dir):
         os.mkdir(archive_dir)
-    warc_file_path = os.path.join(archive_dir, warc_file)
-    meta_file = re.sub('warc(\.gz)?$', 'warc.meta', warc_file_path)  # 2nd arg will be 'warc.meta.gz'
-    # print(meta_file)
+
+    logging.basicConfig(
+        filename=os.path.join(archive_dir, 'sidecar.log'),
+        level=logging.INFO,
+        format='%(asctime)s %(levelname)s %(message)s',
+    )
+    logging.getLogger(__name__)
+    logging.info('Logging WARC metadata record information for %s', warc_file)
+
+    meta_file = re.sub('warc(\.gz)?$', 'warc.meta', warc_file)  # 2nd arg will be 'warc.meta.gz'
+    logging.info('Creating sidecar %s', meta_file)
+    warc_file_path = os.path.join(archive_dir, meta_file)
+
+    fido = ExtendFido()
     mime_title = 'Identified-Payload-Type:'
     puid_title = 'Preservation-Identifier:'
     charset_title = 'Charset-Detected:'
     language_title = 'Languages-cld2:'
 
-    # open the sidecar file to write in the metadata
-    with open(meta_file, 'ab') as output:
-        # open the warc file to get each record
-        with open(warc_file, 'rb') as stream:
-            record_count = 0
-            text_mime = 0
-            non_text = 0
-            non_mime = 0
-            for record in ArchiveIterator(stream):
-                if record.rec_type == 'response':  # ['response', 'resource']:
-                    record_count += 1
-                    url = record.rec_headers.get_header('WARC-Target-URI')
-                    record_date = record.rec_headers.get_header('WARC-Date')
-                    warcinfo_id = record.rec_headers.get_header('WARC-Warcinfo-ID')
-                    warcrecord_id = record.rec_headers.get('WARC-Record-ID')
-                    warc_dict = {'WARC-Date': record_date, 'WARC-Concurrent-ID': warcrecord_id}
-                    if warcinfo_id:
-                        warc_dict['WARC-Warcinfo-ID'] = warcinfo_id
+    # open the sidecar file to write in the metadata, open the warc file to get each record
+    with open(warc_file_path, 'ab') as output, open(warc_file, 'rb') as stream:
+        record_count = 0
+        text_mime = 0
+        non_text = 0
+        non_mime = 0
+        for record in ArchiveIterator(stream):
+            if 'response' not in record.rec_type:
+                continue
+            record_count += 1
+            url = record.rec_headers.get_header('WARC-Target-URI')
+            record_date = record.rec_headers.get_header('WARC-Date')
+            warcinfo_id = record.rec_headers.get_header('WARC-Warcinfo-ID')
+            warcrecord_id = record.rec_headers.get('WARC-Record-ID')
+            # define specific warc_headers to include in sidecar
+            warc_dict = {'WARC-Date': record_date, 'WARC-Concurrent-ID': warcrecord_id}
+            if warcinfo_id:
+                warc_dict['WARC-Warcinfo-ID'] = warcinfo_id
 
-                    # https://github.com/webrecorder/warcio/issues/64
-                    rawPayload = io.BytesIO(record.raw_stream.read())
-                    if record.http_headers:
-                        recordCopy = ArcWarcRecord(record.format, record.rec_type,
-                                                   record.rec_headers, rawPayload,
-                                                   record.http_headers, record.content_type,
-                                                   record.length)
-                        decodedPayload = recordCopy.content_stream().read()
-                        rawPayload.seek(0)
-                    else:
-                        decodedPayload = rawPayload
+            # https://github.com/webrecorder/warcio/issues/64
+            rawPayload = io.BytesIO(record.raw_stream.read())
+            if record.http_headers:
+                recordCopy = ArcWarcRecord(
+                    record.format, record.rec_type,
+                    record.rec_headers, rawPayload,
+                    record.http_headers, record.content_type,
+                    record.length
+                    )
+                decodedPayload = recordCopy.content_stream().read()
+                rawPayload.seek(0)
+            else:
+                decodedPayload = rawPayload
 
-                    print(url)
+            print(url)
+            find_mime_and_puid(fido, rawPayload, url)
+            result_dict = find_character_set(decodedPayload)
 
-                    fido.identify_stream(rawPayload, url)
-                    puid = fido.puid
-                    mime = fido.mime
-                    print(puid, mime)
+            if fido.mime:
+                # using pycld2, if text or html in mimetype find language in payload
+                if 'text' in fido.mime or 'html' in fido.mime:  # research mimetypes
+                    lang_cld = find_language(decodedPayload)
+                    text_mime += 1
+                    string_payload = '{0} {1}\n{2} {3}\n{4} {5}\n{6} {7}'.format(
+                        mime_title, fido.mime,
+                        puid_title, fido.puid,
+                        charset_title, result_dict,
+                        language_title, lang_cld
+                        )
+                elif result_dict['encoding'] is None:
+                    non_text += 1
+                    string_payload = '{0} {1}\n{2} {3}'.format(
+                        mime_title, fido.mime,
+                        puid_title, fido.puid,
+                        )
+                else:
+                    non_text += 1
+                    string_payload = '{0} {1}\n{2} {3}\n{4} {5}'.format(
+                        mime_title, fido.mime,
+                        puid_title, fido.puid,
+                        charset_title, result_dict,
+                        )
+            else:
+                non_mime += 1
+                string_payload = '{0} {1}'.format(charset_title, result_dict)
 
-                    if '.jpg' or '.gif' not in url:
-                        result = chardet.detect(decodedPayload)
-                        result_dict = {'encoding': result['encoding'],
-                                       'confidence': result['confidence']
-                                       }
-                    else:
-                        result = None
-                    print(result)
+            byte_payload = bytearray(string_payload.encode())
+            writer = WARCWriter(output, gzip=False)  # gzip will equal True
+            meta_record = writer.create_warc_record(url,
+                                                    'metadata',
+                                                    payload=io.BytesIO(byte_payload),
+                                                    warc_headers_dict=warc_dict
+                                                    )
+            # meta_record.raw_stream.seek(0)
+            writer.write_record(meta_record)
 
-                    if mime:
-                        if 'text' in mime or 'html' in mime:
-                            text_mime += 1
-                            text = decodedPayload.decode('utf-8-sig', 'ignore')
-                            isReliable, textBytesFound, details = cld2.detect(text)
-                            lang_cld = {'reliable': isReliable, 'text-bytes': textBytesFound,
-                                        'languages': {'name': details[0][0], 'code': details[0][1],
-                                                      'text-covered': details[0][2],
-                                                      'score': details[0][3]
-                                                      }
-                                        }
-                            print(lang_cld)
-                            string_payload = '{0} {1}\n{2} {3}\n{4} {5}\n{6} {7}'.format(mime_title,
-                                                                                         mime,
-                                                                                         puid_title,
-                                                                                         puid,
-                                                                                         charset_title,
-                                                                                         result_dict,
-                                                                                         language_title,
-                                                                                         lang_cld
-                                                                                         )
-                        elif result['encoding'] is None:
-                            non_text += 1
-                            string_payload = '{0} {1}\n{2} {3}'.format(mime_title,
-                                                                       mime,
-                                                                       puid_title,
-                                                                       puid,
-                                                                       )
-                        else:
-                            non_text += 1
-                            string_payload = '{0} {1}\n{2} {3}\n{4} {5}'.format(mime_title,
-                                                                                mime,
-                                                                                puid_title,
-                                                                                puid,
-                                                                                charset_title,
-                                                                                result_dict,
-                                                                                )
-                    else:
-                        non_mime += 1
-                        string_payload = '{0} {1}'.format(charset_title,
-                                                          result_dict,
-                                                          )
-                    byte_payload = bytearray(string_payload.encode())
-                    writer = WARCWriter(output, gzip=False)  # gzip will equal True
-                    meta_record = writer.create_warc_record(url,
-                                                            'metadata',
-                                                            payload=io.BytesIO(byte_payload),
-                                                            warc_headers_dict=warc_dict
-                                                            )
-                    meta_record.raw_stream.seek(0)
-                    writer.write_record(meta_record)
-
-                # else:
-                #     print('Error with rec_type')
-
-    print('Completed: ' + str(record_count) + ' Mimes: ' + str(text_mime + non_text) + ' Non Mimes: ' + str(non_mime))
+        logging.info('Found %s response records', record_count)
+    logging.info('Finished creating sidecar in %s', str(timedelta(seconds=(time.time() - start))))
+    print('Mimes: ' + str(text_mime + non_text) + ' Non Mimes: ' + str(non_mime))
 
 
 def main():
