@@ -103,10 +103,13 @@ def metadata_sidecar(archive_dir, warc_file):
         non_text = 0
         non_mime = 0
         for record in ArchiveIterator(stream):
+            url = record.rec_headers.get_header('WARC-Target-URI')
             if 'response' not in record.rec_type:
                 continue
+            if not record.http_headers:
+                logging.error('Http headers not present for %s', url)
+                continue
             record_count += 1
-            url = record.rec_headers.get_header('WARC-Target-URI')
             record_date = record.rec_headers.get_header('WARC-Date')
             warcinfo_id = record.rec_headers.get_header('WARC-Warcinfo-ID')
             warcrecord_id = record.rec_headers.get('WARC-Record-ID')
@@ -157,6 +160,9 @@ def metadata_sidecar(archive_dir, warc_file):
                         puid_title, fido.puid,
                         charset_title, result_dict,
                         )
+            elif result_dict['encoding'] is None:
+                non_mime += 1
+                string_payload = ''
             else:
                 non_mime += 1
                 string_payload = '{0} {1}'.format(charset_title, result_dict)
