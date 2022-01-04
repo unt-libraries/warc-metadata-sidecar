@@ -16,11 +16,11 @@ At the root folder of warc-metadata-sidecar, install:
 
 For usage instructions run:
 
-    $ warc-metadata-sidecar.py --help
+    $ warc_metadata_sidecar.py --help
 
 Example:
 
-    $ warc-metadata-sidecar.py warc_filename.warc.gz example_dirname
+    $ warc_metadata_sidecar.py warc_filename.warc.gz example_dirname
 
 ### License
 
