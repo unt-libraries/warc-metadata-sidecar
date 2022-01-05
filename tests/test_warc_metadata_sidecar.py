@@ -33,8 +33,8 @@ class Test_Warc_Metadata_Sidecar:
         caplog.set_level(INFO)
         sidecar.metadata_sidecar(str(tmpdir), 'tests/test_warc.warc')
         assert 'Logging WARC metadata record information for tests/test_warc.warc' in caplog.text
-        assert 'Http headers not present for dns:cio.gov' in caplog.text
-        assert tmpdir.listdir() == [tmpdir / 'test_warc.warc.meta']
+        assert 'Found 0 record(s)' in caplog.text
+        assert tmpdir.listdir() == [tmpdir / 'test_warc.warc.meta.gz']
 
     def test_find_mime_and_puid(self):
         fido = sidecar.ExtendFido()
