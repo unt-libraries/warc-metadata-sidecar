@@ -16,7 +16,6 @@ from warcio.warcwriter import WARCWriter
 
 class ExtendFido(Fido):
     """ A class that extends Fido to override some methods."""
-
     def blocking_read(self, file, bytes_to_read):
         bytes_read = 0
         buffer = b''
@@ -59,6 +58,7 @@ def find_character_set(decodedPayload):
 
 
 def find_language(decodedPayload):
+    """ A method that uses pycld2 to find the language of the payload."""
     text = decodedPayload.decode('utf-8-sig', 'ignore')
     isReliable, textBytesFound, details = cld2.detect(text)
     lang_cld = {'reliable': isReliable,
@@ -86,7 +86,14 @@ def metadata_sidecar(archive_dir, warc_file):
     logging.getLogger(__name__)
     logging.info('Logging WARC metadata record information for %s', warc_file)
 
-    meta_file = re.sub('warc(\.gz)?$', 'warc.meta', warc_file)  # 2nd arg will be 'warc.meta.gz'
+    if '/' in warc_file:
+        warc_list = warc_file.split('/')
+        length = len(warc_list)
+        new_file = warc_list[length-1]
+        print(new_file)
+        meta_file = re.sub('warc(\.gz)?$', 'warc.meta', new_file)  # 2nd arg will be 'warc.meta.gz'
+    else:
+        meta_file = re.sub('warc(\.gz)?$', 'warc.meta', warc_file)  # 2nd arg will be 'warc.meta.gz'
     logging.info('Creating sidecar %s', meta_file)
     warc_file_path = os.path.join(archive_dir, meta_file)
 
