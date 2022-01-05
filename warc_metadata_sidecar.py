@@ -15,7 +15,7 @@ from warcio.warcwriter import WARCWriter
 
 
 class ExtendFido(Fido):
-    """ A class that extends Fido to override some methods."""
+    """A class that extends Fido to override some methods."""
     def blocking_read(self, file, bytes_to_read):
         bytes_read = 0
         buffer = b''
@@ -42,13 +42,13 @@ class ExtendFido(Fido):
 
 
 def find_mime_and_puid(fido, rawPayload, url):
-    """ A method that uses fido to find the mimetype and preservation identifier."""
+    """A method that uses fido to find the mimetype and preservation identifier."""
     fido.identify_stream(rawPayload, url)
     print(fido.puid, fido.mime)
 
 
 def find_character_set(decodedPayload):
-    """ A method that uses chardet to find the character set of the payload."""
+    """A method that uses chardet to find the character set of the payload."""
     result = chardet.detect(decodedPayload)
     result_dict = {'encoding': result['encoding'],
                    'confidence': result['confidence']
@@ -58,7 +58,7 @@ def find_character_set(decodedPayload):
 
 
 def find_language(decodedPayload):
-    """ A method that uses pycld2 to find the language of the payload."""
+    """A method that uses pycld2 to find the language of the payload."""
     text = decodedPayload.decode('utf-8-sig', 'ignore')
     isReliable, textBytesFound, details = cld2.detect(text)
     lang_cld = {'reliable': isReliable,
@@ -91,9 +91,9 @@ def metadata_sidecar(archive_dir, warc_file):
         length = len(warc_list)
         new_file = warc_list[length-1]
         print(new_file)
-        meta_file = re.sub('warc(\.gz)?$', 'warc.meta', new_file)  # 2nd arg will be 'warc.meta.gz'
+        meta_file = re.sub('warc(\.gz)?$', 'warc.meta.gz', new_file)
     else:
-        meta_file = re.sub('warc(\.gz)?$', 'warc.meta', warc_file)  # 2nd arg will be 'warc.meta.gz'
+        meta_file = re.sub('warc(\.gz)?$', 'warc.meta.gz', warc_file)
     logging.info('Creating sidecar %s', meta_file)
     warc_file_path = os.path.join(archive_dir, meta_file)
 
@@ -111,10 +111,9 @@ def metadata_sidecar(archive_dir, warc_file):
         non_mime = 0
         for record in ArchiveIterator(stream):
             url = record.rec_headers.get_header('WARC-Target-URI')
-            if 'response' not in record.rec_type:
+            if record.rec_type not in ['response', 'resource']:
                 continue
-            if not record.http_headers:
-                logging.error('Http headers not present for %s', url)
+            if 'text/dns' in record.rec_headers.get_header('Content-Type'):
                 continue
             record_count += 1
             record_date = record.rec_headers.get_header('WARC-Date')
@@ -144,8 +143,9 @@ def metadata_sidecar(archive_dir, warc_file):
             result_dict = find_character_set(decodedPayload)
 
             if fido.mime:
-                # using pycld2, if text or html in mimetype find language in payload
-                if 'text' in fido.mime or 'html' in fido.mime:  # research mimetypes
+                # using pycld2, if text, html or xml in mimetype find language in payload
+                text_format_mimes = re.compile(r'(text|html|xml)')
+                if text_format_mimes.search(fido.mime):
                     lang_cld = find_language(decodedPayload)
                     text_mime += 1
                     string_payload = '{0} {1}\n{2} {3}\n{4} {5}\n{6} {7}'.format(
@@ -181,10 +181,9 @@ def metadata_sidecar(archive_dir, warc_file):
                                                     payload=io.BytesIO(byte_payload),
                                                     warc_headers_dict=warc_dict
                                                     )
-            # meta_record.raw_stream.seek(0)
             writer.write_record(meta_record)
 
-        logging.info('Found %s response record(s)', record_count)
+        logging.info('Found %s record(s)', record_count)
     logging.info('Finished creating sidecar in %s', str(timedelta(seconds=(time.time() - start))))
     print('Mimes: ' + str(text_mime + non_text) + ' Non Mimes: ' + str(non_mime))
 
