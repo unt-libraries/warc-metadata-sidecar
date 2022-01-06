@@ -1,6 +1,7 @@
 import io
 import os
 from logging import INFO
+from unittest.mock import patch
 
 from warcio.archiveiterator import ArchiveIterator
 from warcio.recordloader import ArcWarcRecord
@@ -28,13 +29,22 @@ class Test_Warc_Metadata_Sidecar:
                     decodedPayload = rawPayload
             return(url, rawPayload, decodedPayload)
 
-    def test_metadata_sidecar(self, caplog, tmpdir):
-        print(tmpdir)
+    @patch('warc_metadata_sidecar.WARCWriter')
+    def test_metadata_sidecar(self, mock_warcwriter, caplog, tmpdir):
         caplog.set_level(INFO)
         sidecar.metadata_sidecar(str(tmpdir), 'tests/test_warc.warc')
         assert 'Logging WARC metadata record information for tests/test_warc.warc' in caplog.text
         assert 'Found 0 record(s)' in caplog.text
         assert tmpdir.listdir() == [tmpdir / 'test_warc.warc.meta.gz']
+        mock_warcwriter.assert_not_called()
+        writer = mock_warcwriter.return_value
+        m_create_warc_record = writer.create_warc_record.return_value
+        sidecar.metadata_sidecar(str(tmpdir), 'tests/warc.warc')
+        assert 'Logging WARC metadata record information for tests/warc.warc' in caplog.text
+        assert 'Found 1 record(s)' in caplog.text
+        assert tmpdir / 'warc.warc.meta.gz' in tmpdir.listdir()
+        mock_warcwriter.assert_called_once()
+        writer.write_record.assert_called_once_with(m_create_warc_record)
 
     def test_find_mime_and_puid(self):
         fido = sidecar.ExtendFido()
