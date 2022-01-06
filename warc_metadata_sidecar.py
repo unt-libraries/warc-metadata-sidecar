@@ -44,7 +44,6 @@ class ExtendFido(Fido):
 def find_mime_and_puid(fido, rawPayload, url):
     """A method that uses fido to find the mimetype and preservation identifier."""
     fido.identify_stream(rawPayload, url)
-    print(fido.puid, fido.mime)
 
 
 def find_character_set(decodedPayload):
@@ -53,7 +52,6 @@ def find_character_set(decodedPayload):
     result_dict = {'encoding': result['encoding'],
                    'confidence': result['confidence']
                    }
-    print(result)
     return result_dict
 
 
@@ -69,7 +67,6 @@ def find_language(decodedPayload):
                     'text-covered': details[0][2],
                     'score': details[0][3]}
                 }
-    print(lang_cld)
     return lang_cld
 
 
@@ -90,7 +87,6 @@ def metadata_sidecar(archive_dir, warc_file):
         warc_list = warc_file.split('/')
         length = len(warc_list)
         new_file = warc_list[length-1]
-        print(new_file)
         meta_file = re.sub('warc(\.gz)?$', 'warc.meta.gz', new_file)
     else:
         meta_file = re.sub('warc(\.gz)?$', 'warc.meta.gz', warc_file)
@@ -189,7 +185,6 @@ def metadata_sidecar(archive_dir, warc_file):
 
         logging.info('Found %s record(s)', record_count)
     logging.info('Finished creating sidecar in %s', str(timedelta(seconds=(time.time() - start))))
-    print('Mimes: ' + str(text_mime + non_text) + ' Non Mimes: ' + str(non_mime))
 
 
 def main():
