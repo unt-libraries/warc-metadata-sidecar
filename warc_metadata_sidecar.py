@@ -140,11 +140,15 @@ def metadata_sidecar(archive_dir, warc_file):
 
             print(url)
             find_mime_and_puid(fido, rawPayload, url)
-            result_dict = find_character_set(decodedPayload)
+            result_dict = {'encoding': None}
 
             if fido.mime:
-                # using pycld2, if text, html or xml in mimetype find language in payload
+                image_mimes = re.compile(r'(jpeg|gif|png)')
                 text_format_mimes = re.compile(r'(text|html|xml)')
+
+                if not image_mimes.search(fido.mime):
+                    result_dict = find_character_set(decodedPayload)
+
                 if text_format_mimes.search(fido.mime):
                     lang_cld = find_language(decodedPayload)
                     text_mime += 1
