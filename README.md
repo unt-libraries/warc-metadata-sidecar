@@ -1,6 +1,6 @@
 # warc-metadata-sidecar
-========================
-[![Build Status](https://github.com/unt-libraries/warc-metadata-sidecar/actions/workflows/test.yml/badge.svg?branch=master)](https://github.com/unt-libraries/warc-metadata-sidecar/actions)
+
+[![Build Status](https://github.com/unt-libraries/warc-metadata-sidecar/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/unt-libraries/warc-metadata-sidecar/actions)
 
 This library will consume a WARC file, read each record that is a response or resource type, and
 create a new record with metadata that will be stored in a sidecar file. The sidecar records will
@@ -14,7 +14,7 @@ It is recommended to work in a virtual environment.
 
 At the root folder of warc-metadata-sidecar, install:
 
-    $ python setup.py install
+    $ pip install -e .
 
 For usage instructions run:
 
