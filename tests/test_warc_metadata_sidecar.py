@@ -1,22 +1,27 @@
 import io
 import os
 import socket
-import pkg_resources
 from logging import INFO
-from unittest.mock import patch
+from unittest.mock import patch, call
 
+import pycld2 as cld2
+from warcio.archiveiterator import ArchiveIterator
 import warc_metadata_sidecar as sidecar
 
 
-hostname = socket.gethostname()
+HOSTNAME = socket.gethostname()
 
-text_test_file = os.path.join(os.path.dirname(__file__), 'text.warc')
+TEST_DIR = os.path.dirname(__file__)
 
-dns_test_file = os.path.join(os.path.dirname(__file__), 'dns.warc')
+TEXT_TEST_FILE = os.path.join(TEST_DIR, 'text.warc')
+DNS_TEST_FILE = os.path.join(TEST_DIR, 'dns.warc')
+IMAGE_TEST_FILE = os.path.join(TEST_DIR, 'gif.warc')
+REVISIT_TEST_FILE = os.path.join(TEST_DIR, 'revisit.warc')
 
-image_test_file = os.path.join(os.path.dirname(__file__), 'gif.warc')
+MIME_TITLE = 'Identified-Payload-Type:'
+PUID_TITLE = 'Preservation-Identifier:'
 
-records = {'url': 'https://www.unt.edu',
+RECORD1 = {'url': 'https://www.unt.edu',
            'payload': io.BytesIO(b'<!DOCTYPE html>\n<!--[if IE 8]>\n'
                                  b'<html class="no-js lt-ie9" lang="en" dir="ltr"> <![endif]-->\n'
                                  b'<!--[if gt IE 8]><!-->\n'
@@ -28,36 +33,35 @@ records = {'url': 'https://www.unt.edu',
                                  b'</html>\n'
                                  b'</html>\n')}
 
-warcinfo_payload = io.BytesIO(b'software: Webrecorder Platform v3.7\r\n'
-                              b'format: WARC File Format 1.0\r\n'
-                              b'isPartOf: Temporary Collection\r\n')
+CLD2 = (True,
+        7896,
+        (('Unknown', 'un', 99, 1070.0), ('Unknown', 'un', 0, 0.0), ('Unknown', 'un', 0, 0.0)))
 
-warcinfo_dict = {'software': 'warc-metadata-sidecar/1.0',
-                 'hostname': hostname,
-                 'ip': socket.gethostbyname(hostname),
+WARCINFO_DICT = {'software': 'warc-metadata-sidecar/1.0',
+                 'hostname': HOSTNAME,
+                 'ip': socket.gethostbyname(HOSTNAME),
                  'conformsTo': 'http://bibnum.bnf.fr/WARC/WARC_ISO_28500_version1_latestdraft.pdf',
                  'description': 'WARC metdata sidecar for sample.warc',
-                 'publisher': 'University of North Texas - Digital Projects Unit',
-                 'isPartOf': 'Temporary Collection'}
+                 'publisher': 'University of North Texas - Digital Projects Unit'}
 
 
 def test_find_mime_and_puid():
     fido = sidecar.ExtendFido()
-    sidecar.find_mime_and_puid(fido, records['payload'], records['url'])
+    sidecar.find_mime_and_puid(fido, RECORD1['payload'], RECORD1['url'])
     assert fido.puid == 'fmt/471'
     assert fido.mime == 'text/html'
 
 
 def test_find_character_set():
-    records['payload'].seek(0)
-    decoded_payload = records['payload'].read()
+    RECORD1['payload'].seek(0)
+    decoded_payload = RECORD1['payload'].read()
     result_dict = sidecar.find_character_set(decoded_payload)
     assert result_dict == {'encoding': 'ascii', 'confidence': 1.0}
 
 
 def test_find_language():
-    records['payload'].seek(0)
-    decoded_payload = records['payload'].read()
+    RECORD1['payload'].seek(0)
+    decoded_payload = RECORD1['payload'].read()
     language = sidecar.find_language(decoded_payload)
     assert language == {'reliable': True,
                         'text-bytes': 11,
@@ -67,37 +71,42 @@ def test_find_language():
                                        'score': 2048.0}]}
 
 
+def test_unknown_language():
+    with patch.object(cld2, 'detect', return_value=CLD2):
+        language = sidecar.find_language(b'some_bytes')
+    assert language is None
+
+
 def test_create_warcinfo_payload():
-    payload = warcinfo_payload
     publisher = 'University of North Texas - Digital Projects Unit'
-    version = pkg_resources.require("warc-metadata-sidecar")[0].version
-    warcinfo = sidecar.create_warcinfo_payload(payload, None,
-                                               publisher, 'sample.warc',
-                                               version)
-    assert warcinfo == warcinfo_dict
+    warcinfo = sidecar.create_warcinfo_payload('sample.warc', None, publisher)
+    assert warcinfo == WARCINFO_DICT
 
 
 class Test_Warc_Metadata_Sidecar:
 
+    @patch('warc_metadata_sidecar.create_warcinfo_payload')
     @patch('warc_metadata_sidecar.WARCWriter')
-    def test_metadata_sidecar(self, mock_warcwriter, caplog, tmpdir):
+    def test_metadata_sidecar(self, mock_warcwriter, m_warcinfo, caplog, tmpdir):
         caplog.set_level(INFO)
         writer = mock_warcwriter.return_value
-        m_create_warc_record = writer.create_warc_record.return_value
-        sidecar.metadata_sidecar(str(tmpdir), text_test_file)
-        assert 'Logging WARC metadata record information for %s', text_test_file in caplog.text
-        assert 'Found 2 record(s)' in caplog.text
+        sidecar.metadata_sidecar(str(tmpdir), TEXT_TEST_FILE)
+        assert 'Logging WARC metadata record information for %s', TEXT_TEST_FILE in caplog.text
+        assert 'Found 1 record(s)' in caplog.text
         assert tmpdir / 'text.warc.meta.gz' in tmpdir.listdir()
-        assert mock_warcwriter.call_count == 2
-        writer.write_record.assert_called_with(m_create_warc_record)
+        assert writer.write_record.call_count == 2
+        m_warcinfo.assert_called_with('text.warc', None, None)
+        calls = [call(writer.create_warcinfo_record.return_value),
+                 call(writer.create_warc_record.return_value)]
+        writer.write_record.assert_has_calls(calls)
 
     @patch('warc_metadata_sidecar.WARCWriter')
     def test_metadata_sidecar_dns_record(self, mock_warcwriter, caplog, tmpdir):
         caplog.set_level(INFO)
         writer = mock_warcwriter.return_value
         m_create_warc_record = writer.create_warc_record
-        sidecar.metadata_sidecar(str(tmpdir), dns_test_file)
-        assert 'Logging WARC metadata record information for %s', dns_test_file in caplog.text
+        sidecar.metadata_sidecar(str(tmpdir), DNS_TEST_FILE)
+        assert 'Logging WARC metadata record information for %s', DNS_TEST_FILE in caplog.text
         assert 'Deleted sidecar, no records to collect.' in caplog.text
         assert tmpdir / 'dns.warc.meta.gz' not in tmpdir.listdir()
         mock_warcwriter.assert_called_once()
@@ -106,13 +115,24 @@ class Test_Warc_Metadata_Sidecar:
     @patch('warc_metadata_sidecar.find_character_set')
     @patch('warc_metadata_sidecar.find_language')
     def test_metadata_sidecar_image_record(self, mock_language, mock_character, tmpdir):
-        sidecar.metadata_sidecar(str(tmpdir), image_test_file)
+        img_payload = b'Identified-Payload-Type: image/gif\nPreservation-Identifier: fmt/4'
+        sidecar.metadata_sidecar(str(tmpdir), IMAGE_TEST_FILE)
         mock_language.assert_not_called()
         mock_character.assert_not_called()
+        assert tmpdir / 'gif.warc.meta.gz' in tmpdir.listdir()
+        path = os.path.join(tmpdir / 'gif.warc.meta.gz')
+        with open(path, 'rb') as stream:
+            for record in ArchiveIterator(stream):
+                if record.rec_type == 'metadata':
+                    payload = record.content_stream().read()
+                    print(payload)
+        assert payload == img_payload
 
-    @patch('warc_metadata_sidecar.find_character_set')
-    @patch('warc_metadata_sidecar.find_language')
-    def test_metadata_sidecar_text_record(self, mock_language, mock_character, tmpdir):
-        sidecar.metadata_sidecar(str(tmpdir), text_test_file)
-        mock_language.assert_called_once()
-        mock_character.assert_called_once()
+    @patch('warc_metadata_sidecar.WARCWriter')
+    def test_metadata_sidecar_revisit_record(self, mock_warcwriter, caplog, tmpdir):
+        caplog.set_level(INFO)
+        sidecar.metadata_sidecar(str(tmpdir), REVISIT_TEST_FILE)
+        assert 'Logging WARC metadata record information for %s', REVISIT_TEST_FILE in caplog.text
+        assert 'Deleted sidecar, no records to collect.' in caplog.text
+        assert tmpdir / 'revist.warc.meta.gz' not in tmpdir.listdir()
+        mock_warcwriter.assert_called_once()
