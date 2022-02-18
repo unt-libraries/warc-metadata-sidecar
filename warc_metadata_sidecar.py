@@ -15,15 +15,21 @@ from warcio.archiveiterator import ArchiveIterator
 from warcio.warcwriter import WARCWriter
 
 
+MIME_TITLE = 'Identified-Payload-Type:'
+PUID_TITLE = 'Preservation-Identifier:'
+CHARSET_TITLE = 'Charset-Detected:'
+LANGUAGE_TITLE = 'Languages-cld2:'
+
+
 class ExtendFido(Fido):
     """A class that extends Fido to override some methods."""
     def blocking_read(self, file, bytes_to_read):
-        """This method is used to get the end of the buffer.
+        """Read all bytes into buffer and return.
 
-        A known issue is that the stream hangs when identify_stream is called. The if statement
-        helps break out when end of file is reached.
+        Remedies a known issue of the method hanging when identify_stream is called.
+        Modifies the if statement to break out when the end of the stream is reached.
+        https://github.com/openpreserve/fido/blob/093cf9c8c968c710d3d6dfbbcc6e067cd9e27ef3/fido/fido.py#L518
         """
-        # https://github.com/openpreserve/fido/blob/master/fido/fido.py#L510
         bytes_read = 0
         buffer = b''
         while bytes_read < bytes_to_read:
@@ -35,10 +41,7 @@ class ExtendFido(Fido):
         return buffer
 
     def print_matches(self, fullname, matches, delta_t, matchtype=''):
-        """This method prints out information for each match.
-
-        We override the method in order to save the mimetype and puid to the fido object.
-        """
+        """Override print_matches to store a mimetype and puid to the fido object."""
         # https://github.com/openpreserve/fido/blob/master/fido/fido.py#L272
         if not matches:
             self.puid = None
@@ -77,7 +80,7 @@ def find_language(bytes_payload):
                 'code': item[1],
                 'text-covered': item[2],
                 'score': item[3]})
-    if len(new_list):
+    if new_list:
         lang_cld = {'reliable': is_reliable,
                     'text-bytes': text_bytes_found,
                     'languages': new_list}
@@ -86,33 +89,26 @@ def find_language(bytes_payload):
         return None
 
 
-def create_warcinfo_payload(payload, operator, publisher, new_file, version):
-    payload.seek(0)
-    info_payload = payload.read()
-    warcinfo = info_payload.decode("utf-8")
-    warc_list = re.split('\r\n|: ', warcinfo)
+def create_warcinfo_payload(new_file, operator=None, publisher=None):
+    """Collect WARC fields to create warcinfo record payload."""
     hostname = socket.gethostname()
+    version = pkg_resources.require('warc-metadata-sidecar')[0].version
     warc_doc = 'http://bibnum.bnf.fr/WARC/WARC_ISO_28500_version1_latestdraft.pdf'
     warcinfo_payload = {'software': 'warc-metadata-sidecar/' + version,
                         'hostname': hostname,
                         'ip': socket.gethostbyname(hostname),
                         'conformsTo': warc_doc,
-                        'description': 'WARC metdata sidecar for ' + new_file,
-                        'publisher': publisher}
+                        'description': 'WARC metdata sidecar for ' + new_file}
+    if publisher:
+        warcinfo_payload['publisher'] = publisher
     if operator:
         warcinfo_payload['operator'] = operator
-    if 'isPartOf' in warc_list:
-        list_index = warc_list.index('isPartOf')
-        is_part_of = warc_list[list_index + 1]
-        warcinfo_payload['isPartOf'] = is_part_of
 
     return warcinfo_payload
 
 
-def metadata_sidecar(archive_dir, warc_file, operator=None,
-                     publisher='University of North Texas - Digital Projects Unit'):
+def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
     start = time.time()
-    version = pkg_resources.require("warc-metadata-sidecar")[0].version
 
     if not os.path.isdir(archive_dir):
         os.mkdir(archive_dir)
@@ -127,15 +123,11 @@ def metadata_sidecar(archive_dir, warc_file, operator=None,
 
     # Create sidecar filename, adding 'meta' as extension.
     new_file = os.path.basename(warc_file)
-    meta_file = re.sub('warc(\.gz)?$', 'warc.meta.gz', new_file)
+    meta_file = re.sub(r'warc(\.gz)?$', 'warc.meta.gz', new_file)
     logging.info('Creating sidecar %s', meta_file)
     warc_file_path = os.path.join(archive_dir, meta_file)
 
     fido = ExtendFido()
-    mime_title = 'Identified-Payload-Type:'
-    puid_title = 'Preservation-Identifier:'
-    charset_title = 'Charset-Detected:'
-    language_title = 'Languages-cld2:'
 
     # Open the sidecar file to write in the metadata, open the warc file to get each record.
     with open(warc_file_path, 'ab') as output, open(warc_file, 'rb') as stream:
@@ -144,24 +136,21 @@ def metadata_sidecar(archive_dir, warc_file, operator=None,
         text_mime = 0
         non_text = 0
         non_mime = 0
+
+        writer = WARCWriter(output, gzip=False)  # TODO: gzip will equal True
+        warc_info = create_warcinfo_payload(new_file, operator, publisher)
+        # Create warcinfo record and write it into sidecar.
+        warcinfo_record = writer.create_warcinfo_record(meta_file, warc_info)
+        writer.write_record(warcinfo_record)
+
         for record in ArchiveIterator(stream):
             total_records += 1
             url = record.rec_headers.get_header('WARC-Target-URI')
             payload = io.BytesIO(record.content_stream().read())
-            if not record_count:  # and record.rec_type == 'warcinfo':
-                rec_type = record.rec_type
-                warc_info = create_warcinfo_payload(payload, operator, publisher,
-                                                    new_file, version)
-                # Write warcinfo record into sidecar.
-                writer = WARCWriter(output, gzip=False)  # TODO: gzip will equal True
-                warcinfo_record = writer.create_warcinfo_record(meta_file, warc_info)
-                writer.write_record(warcinfo_record)
-                record_count += 1
             if record.rec_type not in ['response', 'resource']:
                 continue
-            payload.seek(0)
             # The payload is how we find the important info. Skip record if empty.
-            if not len(payload.read()):
+            if not payload.read(1):
                 continue
             if 'text/dns' in record.rec_headers.get_header('Content-Type'):
                 continue
@@ -188,39 +177,37 @@ def metadata_sidecar(archive_dir, warc_file, operator=None,
                     text_mime += 1
                     if not lang_cld:
                         string_payload = '{0} {1}\n{2} {3}\n{4} {5}'.format(
-                            mime_title, fido.mime,
-                            puid_title, fido.puid,
-                            charset_title, result_dict
+                            MIME_TITLE, fido.mime,
+                            PUID_TITLE, fido.puid,
+                            CHARSET_TITLE, result_dict
                             )
                     else:
                         string_payload = '{0} {1}\n{2} {3}\n{4} {5}\n{6} {7}'.format(
-                            mime_title, fido.mime,
-                            puid_title, fido.puid,
-                            charset_title, result_dict,
-                            language_title, lang_cld
+                            MIME_TITLE, fido.mime,
+                            PUID_TITLE, fido.puid,
+                            CHARSET_TITLE, result_dict,
+                            LANGUAGE_TITLE, lang_cld
                             )
                 else:
                     non_text += 1
                     string_payload = '{0} {1}\n{2} {3}'.format(
-                        mime_title, fido.mime,
-                        puid_title, fido.puid
+                        MIME_TITLE, fido.mime,
+                        PUID_TITLE, fido.puid
                         )
             else:
                 non_mime += 1
                 string_payload = ''
 
-            writer = WARCWriter(output, gzip=False)  # TODO: gzip will equal True
             meta_record = writer.create_warc_record(url,
                                                     'metadata',
                                                     payload=io.BytesIO(string_payload.encode()),
                                                     warc_headers_dict=warc_dict
                                                     )
             writer.write_record(meta_record)
-        # Delete sidecar file if the only record is 'warcinfo'.
-        if record_count == 1:
-            if rec_type:
-                os.remove(warc_file_path)
-                logging.info('Deleted sidecar, no records to collect.')
+        # Delete sidecar file if we do not collect any records.
+        if not record_count:
+            os.remove(warc_file_path)
+            logging.info('Deleted sidecar, no records to collect.')
         else:
             logging.info('Finished creating sidecar in %s',
                          str(timedelta(seconds=(time.time() - start))))
@@ -234,24 +221,24 @@ def main():
     parser.add_argument(
         'warc_file',
         action='store',
-        help='a WARC file that will be used to generate a sidecar with metadata'
+        help='A WARC file that will be used to generate a sidecar with metadata.'
     )
     parser.add_argument(
         'archive_dir',
         action='store',
-        help='a directory where the sidecar and log will be stored',
+        help='A directory where the sidecar and log will be stored.',
     )
     parser.add_argument(
         '--operator',
         action='store',
         default=None,
-        help='a name or name and email address of the person who created this WARC file'
+        help='A name or name and email address of the person running warc-metadata-sidecar.'
     )
     parser.add_argument(
         '--publisher',
         action='store',
         default='University of North Texas - Digital Projects Unit',
-        help='the name of the institute or department to produce the metadata sidecar WARC file'
+        help='The name of the institute or department to produce the metadata sidecar WARC file.'
     )
     args = parser.parse_args()
     metadata_sidecar(args.archive_dir, args.warc_file, args.operator, args.publisher)
