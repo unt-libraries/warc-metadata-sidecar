@@ -11,7 +11,7 @@ with open('requirements.txt', 'r') as f:
 setup(
     name='warc-metadata-sidecar',
     version='1.0',
-    url='https://github/unt-libraries/warc-metadata-sidecar/',
+    url='https://github.com/unt-libraries/warc-metadata-sidecar/',
     author='University of North Texas Libraries',
     author_email='gracie.flores@unt.edu',
     license='',
