@@ -1,0 +1,42 @@
+WARC/1.1
+WARC-Record-ID: <urn:uuid:ef4cd3f0-9e1e-5e7f-b915-3fd44aaaa8c4>
+WARC-Page-ID: 0mrsoc3ltj6m7nc3v89dssc
+WARC-Payload-Digest: sha256:799aeb25cc0373fdee0e1b1db7ad6c2f6a0e058dfadaa3379689f583213190bd
+WARC-Target-URI: https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css
+WARC-Date: 2022-02-01T17:20:13.367Z
+WARC-Type: revisit
+WARC-Profile: http://netpreserve.org/warc/1.1/revisit/identical-payload-digest
+WARC-Refers-To-Target-URI: https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css
+WARC-Refers-To-Date: 2022-02-01T17:20:01.421Z
+Content-Type: application/http; msgtype=response
+Content-Length: 944
+
+HTTP/1.1 200 OK
+access-control-allow-origin: *
+age: 24608682
+alt-svc: h3=":443"; ma=86400, h3-29=":443"; ma=86400
+cache-control: public, max-age=31919000
+cdn-cache: HIT
+cdn-cachedat: 2021-04-22 20:57:47
+cdn-edgestorageid: 711, 617, 617, 617
+cdn-pullzone: 252412
+cdn-requestcountrycode: US
+cdn-requestid: 67a6c1a5f42c3bc2de1d77d60f99ebc5
+cdn-requestpullcode: 200
+cdn-requestpullsuccess: True
+cdn-uid: b1941f61-b576-4f40-80de-5677acb38f74
+cf-cache-status: HIT
+cf-ray: 6d6cd96348340f26-DFW
+content-type: text/css; charset=utf-8
+cross-origin-resource-policy: cross-origin
+date: Tue, 01 Feb 2022 17:20:13 GMT
+expect-ct: max-age=604800, report-uri="https://report-uri.cloudflare.com/cdn-cgi/beacon/expect-ct"
+last-modified: Mon, 25 Jan 2021 22:04:55 GMT
+server: cloudflare
+strict-transport-security: max-age=31536000; includeSubDomains; preload
+timing-allow-origin: *
+vary: Accept-Encoding
+x-content-type-options: nosniff
+
+
+
