@@ -19,6 +19,8 @@ IMAGE_TEST_FILE = os.path.join(TEST_DIR, 'gif.warc')
 REVISIT_TEST_FILE = os.path.join(TEST_DIR, 'revisit.warc')
 
 MIME_TITLE = 'Identified-Payload-Type:'
+METHOD_TITLE = 'Payload-Type-Retrieval-Method:'
+RETRIEVED_TITLE = 'Payload-Type-Retrieved-By:'
 PUID_TITLE = 'Preservation-Identifier:'
 
 RECORD1 = {'url': 'https://www.unt.edu',
@@ -115,7 +117,11 @@ class Test_Warc_Metadata_Sidecar:
     @patch('warc_metadata_sidecar.find_character_set')
     @patch('warc_metadata_sidecar.find_language')
     def test_metadata_sidecar_image_record(self, mock_language, mock_character, tmpdir):
-        img_payload = b'Identified-Payload-Type: image/gif\nPreservation-Identifier: fmt/4'
+        img_payload = '{0} {1}\n{2} {3}\n{4} {5}\n{6} {7}'.format(
+                            MIME_TITLE, 'image/gif',
+                            METHOD_TITLE, 'content',
+                            RETRIEVED_TITLE, 'Fido',
+                            PUID_TITLE, 'fmt/4').encode('utf-8')
         sidecar.metadata_sidecar(str(tmpdir), IMAGE_TEST_FILE)
         mock_language.assert_not_called()
         mock_character.assert_not_called()
