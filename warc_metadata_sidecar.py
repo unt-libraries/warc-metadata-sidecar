@@ -47,7 +47,7 @@ class ExtendFido(Fido):
                 break
         return buffer
 
-    def print_matches(self, fullname, matches, delta_t, matchtype=''):
+    def print_matches(self, fullname, matches, matchtype=''):
         """Override print_matches to store a mimetype and puid to the fido object."""
         # https://github.com/openpreserve/fido/blob/master/fido/fido.py#L272
         if not matches:
@@ -68,12 +68,12 @@ class ExtendFido(Fido):
         self.format_tool = 'Fido'
 
     def identify_stream(self, stream, filename, extension=True):
-        """Overrride identify_stream to get the matches for file content only."""
+        """Override identify_stream to get the matches for file content only."""
         bofbuffer, eofbuffer, bytes_read = self.get_buffers(stream)
         self.current_filesize = bytes_read
         self.current_file = filename
         matches = self.match_formats(bofbuffer, eofbuffer)
-        self.print_matches(self.current_file, matches, 'time', 'content')
+        self.print_matches(self.current_file, matches, 'content')
 
 
 def find_mime_and_puid(fido, payload, url):
@@ -90,7 +90,7 @@ def find_mime_and_puid(fido, payload, url):
     if not fido.mime:
         new_file = os.path.basename(url)
         matches = fido.match_extensions(new_file)
-        fido.print_matches(url, matches, 'time', 'extension')
+        fido.print_matches(url, matches, 'extension')
 
 
 def find_character_set(bytes_payload):
