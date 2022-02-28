@@ -3,3 +3,4 @@ opf-fido==1.4.1
 chardet==4.0.0
 pycld2==0.41
 python-magic==0.4.25
+regex==2022.1.18
