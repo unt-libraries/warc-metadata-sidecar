@@ -11,16 +11,14 @@ import time
 from datetime import timedelta
 
 import chardet
+import magic
 import pycld2 as cld2
 from fido.fido import Fido
-from magic.compat import detect_from_content
 from warcio.archiveiterator import ArchiveIterator
 from warcio.warcwriter import WARCWriter
 
 
 MIME_TITLE = 'Identified-Payload-Type:'
-METHOD_TITLE = 'Payload-Type-Retrieval-Method:'
-RETRIEVED_TITLE = 'Payload-Type-Retrieved-By:'
 PUID_TITLE = 'Preservation-Identifier:'
 CHARSET_TITLE = 'Charset-Detected:'
 LANGUAGE_TITLE = 'Languages-cld2:'
@@ -47,50 +45,33 @@ class ExtendFido(Fido):
                 break
         return buffer
 
-    def print_matches(self, fullname, matches, matchtype=''):
-        """Override print_matches to store a mimetype and puid to the fido object."""
-        # https://github.com/openpreserve/fido/blob/master/fido/fido.py#L272
-        if not matches:
-            self.mime = None
-            self.puid = None
-            self.matchtype = matchtype
-            self.format_tool = 'Fido'
-            return
-        match_format, _ = matches[0]
-        mime = match_format.find('mime')
-        puid = None
-        self.mime = mime.text if mime is not None else None
-        # We only want puid from the content.
-        if matchtype != 'extension':
-            puid = self.get_puid(match_format)
-        self.puid = puid if puid is not None else None
-        self.matchtype = matchtype
-        self.format_tool = 'Fido'
-
-    def identify_stream(self, stream, filename, extension=True):
-        """Override identify_stream to get the matches for file content only."""
+    def identify_stream(self, stream):
+        """Override identify_stream to get the matches, mime type, and puid"""
         bofbuffer, eofbuffer, bytes_read = self.get_buffers(stream)
         self.current_filesize = bytes_read
-        self.current_file = filename
         matches = self.match_formats(bofbuffer, eofbuffer)
-        self.print_matches(self.current_file, matches, 'content')
+        self.puid = None
+        self.mime = None
+        if matches:
+            match_format, _ = matches[0]
+            mime = match_format.find('mime')
+            self.mime = mime.text if mime is not None else None
+            self.puid = self.get_puid(match_format)
 
 
-def find_mime_and_puid(fido, payload, url):
+def find_mime_and_puid(fido, payload):
     """Find the mimetype and preservation identifier using fido and python-magic."""
-    fido.identify_stream(payload, url)
+    # Using fido to find mimetype.
+    fido.identify_stream(payload)
     # Using python-magic to find mimetype.
-    if not fido.mime:
-        payload.seek(0)
-        buffer = payload.read()
-        m = detect_from_content(buffer)
-        fido.mime = m.mime_type
-        fido.format_tool = 'python-magic'
-    # If we still haven't found the mimetype using the content, try by extension using Fido.
-    if not fido.mime:
-        new_file = os.path.basename(url)
-        matches = fido.match_extensions(new_file)
-        fido.print_matches(url, matches, 'extension')
+    payload.seek(0)
+    magic_mime = magic.from_buffer(payload.read(), mime=True)
+    mime_dict = {}
+    if fido.mime:
+        mime_dict['fido'] = fido.mime
+    if magic_mime:
+        mime_dict['python-magic'] = magic_mime
+    return mime_dict
 
 
 def find_character_set(bytes_payload):
@@ -111,7 +92,7 @@ def find_language(bytes_load):
     new_list = []
     # 'details' seems to always return 3, if the language is 'Unknown' we don't need to list it.
     for item in details:
-        if 'Unknown' not in item:
+        if item[0] != 'Unknown':
             new_list.append({
                 'name': item[0],
                 'code': item[1],
@@ -144,6 +125,21 @@ def create_warcinfo_payload(new_file, operator=None, publisher=None):
     return warcinfo_payload
 
 
+def create_string_payload(fido, mime_dict, result_dict, lang_cld):
+    puid = '\n{0} {1}'.format(PUID_TITLE, fido.puid) if fido.puid is not None else None
+    mime_str = '{0} {1}'.format(MIME_TITLE, mime_dict)
+    string_payload = mime_str
+    if puid:
+        string_payload += puid
+    if result_dict.get('encoding'):
+        char = '\n{0} {1}'.format(CHARSET_TITLE, result_dict)
+        string_payload += char
+    if lang_cld:
+        lang = '\n{0} {1}'.format(LANGUAGE_TITLE, lang_cld)
+        string_payload += lang
+    return string_payload
+
+
 def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
     start = time.time()
 
@@ -170,6 +166,7 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
         total_records = 0
         text_mime = 0
         non_text = 0
+        fido = ExtendFido()
 
         writer = WARCWriter(output, gzip=False)  # TODO: gzip will equal True
         warc_info = create_warcinfo_payload(new_file, operator, publisher)
@@ -178,17 +175,16 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
         writer.write_record(warcinfo_record)
 
         for record in ArchiveIterator(stream):
-            fido = ExtendFido()
             total_records += 1
-            url = record.rec_headers.get_header('WARC-Target-URI')
-            payload = io.BytesIO(record.content_stream().read())
             if record.rec_type not in ['response', 'resource']:
-                continue
-            # The payload is how we find the important info. Skip record if empty.
-            if not payload.read(1):
                 continue
             if 'text/dns' in record.rec_headers.get_header('Content-Type'):
                 continue
+            payload = io.BytesIO(record.content_stream().read())
+            # The payload is how we find the important info. Skip record if empty.
+            if not payload.read(1):
+                continue
+            url = record.rec_headers.get_header('WARC-Target-URI')
             record_date = record.rec_headers.get_header('WARC-Date')
             warcinfo_id = record.rec_headers.get_header('WARC-Warcinfo-ID')
             warcrecord_id = record.rec_headers.get_header('WARC-Record-ID')
@@ -199,34 +195,25 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
 
             print(url)
             payload.seek(0)
-            find_mime_and_puid(fido, payload, url)
+            mime_dict = find_mime_and_puid(fido, payload)
 
-            puid = '\n{0} {1}'.format(PUID_TITLE, fido.puid) if fido.puid is not None else None
-            if fido.mime:
-                mime_str = '{0} {1}\n{2} {3}\n{4} {5}'.format(
-                            MIME_TITLE, fido.mime,
-                            METHOD_TITLE, fido.matchtype,
-                            RETRIEVED_TITLE, fido.format_tool)
-                string_payload = mime_str
-                if puid:
-                    string_payload += puid
-                text_format_mimes = re.compile(r'(text|html|xml)')
+            result_dict = {}
+            lang_cld = None
+            if fido.mime is None:
+                fido.mime = mime_dict.get('python-magic')
+            if fido.mime is None:
+                continue
+            else:
+                text_format_mimes = re.compile(r'(text|html|xml)')  # this may change
                 if text_format_mimes.search(fido.mime):
                     payload.seek(0)
                     bytes_payload = payload.read()
                     result_dict = find_character_set(bytes_payload)
                     lang_cld = find_language(bytes_payload)
                     text_mime += 1
-                    if result_dict['encoding']:
-                        char = '\n{0} {1}'.format(CHARSET_TITLE, result_dict)
-                        string_payload += char
-                    if lang_cld:
-                        lang = '\n{0} {1}'.format(LANGUAGE_TITLE, lang_cld)
-                        string_payload += lang
                 else:
                     non_text += 1
-            else:
-                continue
+            string_payload = create_string_payload(fido, mime_dict, result_dict, lang_cld)
             record_count += 1
             meta_record = writer.create_warc_record(url,
                                                     'metadata',
