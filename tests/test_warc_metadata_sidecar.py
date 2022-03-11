@@ -18,11 +18,6 @@ DNS_TEST_FILE = os.path.join(TEST_DIR, 'dns.warc')
 IMAGE_TEST_FILE = os.path.join(TEST_DIR, 'gif.warc')
 REVISIT_TEST_FILE = os.path.join(TEST_DIR, 'revisit.warc')
 
-MIME_TITLE = 'Identified-Payload-Type:'
-METHOD_TITLE = 'Payload-Type-Retrieval-Method:'
-RETRIEVED_TITLE = 'Payload-Type-Retrieved-By:'
-PUID_TITLE = 'Preservation-Identifier:'
-
 RECORD1 = {'url': 'https://www.unt.edu',
            'payload': io.BytesIO(b'<!DOCTYPE html>\n<!--[if IE 8]>\n'
                                  b'<html class="no-js lt-ie9" lang="en" dir="ltr"> <![endif]-->\n'
@@ -34,6 +29,13 @@ RECORD1 = {'url': 'https://www.unt.edu',
                                  b'<body>some text</body>\n'
                                  b'</html>\n'
                                  b'</html>\n')}
+
+RECORD_LANG_DICT = {'reliable': True,
+                    'text-bytes': 11,
+                    'languages': [{'name': 'ENGLISH',
+                                   'code': 'en',
+                                   'text-covered': 90,
+                                   'score': 2048.0}]}
 
 CLD2 = (True,
         7896,
@@ -49,9 +51,10 @@ WARCINFO_DICT = {'software': 'warc-metadata-sidecar/1.0',
 
 def test_find_mime_and_puid():
     fido = sidecar.ExtendFido()
-    sidecar.find_mime_and_puid(fido, RECORD1['payload'], RECORD1['url'])
+    mime_dict = sidecar.find_mime_and_puid(fido, RECORD1['payload'])
     assert fido.puid == 'fmt/471'
     assert fido.mime == 'text/html'
+    assert mime_dict == {'fido': 'text/html', 'python-magic': 'text/html'}
 
 
 def test_find_character_set():
@@ -65,12 +68,7 @@ def test_find_language():
     RECORD1['payload'].seek(0)
     decoded_payload = RECORD1['payload'].read()
     language = sidecar.find_language(decoded_payload)
-    assert language == {'reliable': True,
-                        'text-bytes': 11,
-                        'languages': [{'name': 'ENGLISH',
-                                       'code': 'en',
-                                       'text-covered': 90,
-                                       'score': 2048.0}]}
+    assert language == RECORD_LANG_DICT
 
 
 def test_unknown_language():
@@ -83,6 +81,20 @@ def test_create_warcinfo_payload():
     publisher = 'University of North Texas - Digital Projects Unit'
     warcinfo = sidecar.create_warcinfo_payload('sample.warc', None, publisher)
     assert warcinfo == WARCINFO_DICT
+
+
+def test_create_string_payload():
+    fido = sidecar.ExtendFido()
+    fido.puid = 'fmt/471'
+    mime_dict = {'fido': 'text/html', 'python-magic': 'text/html'}
+    result_dict = {'encoding': 'ascii', 'confidence': 1.0}
+    lang_cld = RECORD_LANG_DICT
+    payload = sidecar.create_string_payload(fido, mime_dict, result_dict, lang_cld)
+    assert payload == '{0} {1}\n{2} {3}\n{4} {5}\n{6} {7}'.format(
+                            sidecar.MIME_TITLE, mime_dict,
+                            sidecar.PUID_TITLE, fido.puid,
+                            sidecar.CHARSET_TITLE, result_dict,
+                            sidecar.LANGUAGE_TITLE, lang_cld)
 
 
 class Test_Warc_Metadata_Sidecar:
@@ -117,11 +129,9 @@ class Test_Warc_Metadata_Sidecar:
     @patch('warc_metadata_sidecar.find_character_set')
     @patch('warc_metadata_sidecar.find_language')
     def test_metadata_sidecar_image_record(self, mock_language, mock_character, tmpdir):
-        img_payload = '{0} {1}\n{2} {3}\n{4} {5}\n{6} {7}'.format(
-                            MIME_TITLE, 'image/gif',
-                            METHOD_TITLE, 'content',
-                            RETRIEVED_TITLE, 'Fido',
-                            PUID_TITLE, 'fmt/4').encode('utf-8')
+        img_payload = '{0} {1}\n{2} {3}'.format(
+                            sidecar.MIME_TITLE, {'fido': 'image/gif', 'python-magic': 'image/gif'},
+                            sidecar.PUID_TITLE, 'fmt/4').encode('utf-8')
         sidecar.metadata_sidecar(str(tmpdir), IMAGE_TEST_FILE)
         mock_language.assert_not_called()
         mock_character.assert_not_called()
@@ -131,7 +141,6 @@ class Test_Warc_Metadata_Sidecar:
             for record in ArchiveIterator(stream):
                 if record.rec_type == 'metadata':
                     payload = record.content_stream().read()
-                    print(payload)
         assert payload == img_payload
 
     @patch('warc_metadata_sidecar.WARCWriter')
