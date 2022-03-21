@@ -16,7 +16,7 @@ setup(
     author_email='gracie.flores@unt.edu',
     license='',
     py_modules=['warc_metadata_sidecar'],
-    scripts=['warc_metadata_sidecar.py', 'warc_column_output.py'],
+    scripts=['warc_metadata_sidecar.py'],
     description='A script that creates a metadata sidecar file from a WARC file',
     long_description=long_description,
     long_description_content_type='text/markdown',
