@@ -25,6 +25,8 @@ LANGUAGE_TITLE = 'Languages-cld2:'
 
 BAD_CHARS = regex.compile(r'\p{Cc}|\p{Cs}|\p{Cn}')
 
+TEXT_FORMAT_MIMES = re.compile(r'(text|html|xml)')  # this may change
+
 
 class ExtendFido(Fido):
     """A class that extends Fido to override some methods."""
@@ -41,7 +43,7 @@ class ExtendFido(Fido):
             readbuffer = file.read(bytes_to_read - bytes_read)
             buffer += readbuffer
             bytes_read = len(buffer)
-            if not readbuffer:  # Also works with if readbuffer == b'':
+            if not readbuffer:
                 break
         return buffer
 
@@ -50,28 +52,29 @@ class ExtendFido(Fido):
         bofbuffer, eofbuffer, bytes_read = self.get_buffers(stream)
         self.current_filesize = bytes_read
         matches = self.match_formats(bofbuffer, eofbuffer)
-        self.puid = None
-        self.mime = None
+        puid = None
+        fido_mime = None
         if matches:
             match_format, _ = matches[0]
             mime = match_format.find('mime')
-            self.mime = mime.text if mime is not None else None
-            self.puid = self.get_puid(match_format)
+            fido_mime = mime.text if mime is not None else None
+            puid = self.get_puid(match_format)
+        return (fido_mime, puid)
 
 
 def find_mime_and_puid(fido, payload):
     """Find the mimetype and preservation identifier using fido and python-magic."""
-    # Using fido to find mimetype.
-    fido.identify_stream(payload)
+    # Using fido to find mimetype and puid.
+    fido_mime_puid = fido.identify_stream(payload)
     # Using python-magic to find mimetype.
     payload.seek(0)
     magic_mime = magic.from_buffer(payload.read(), mime=True)
     mime_dict = {}
-    if fido.mime:
-        mime_dict['fido'] = fido.mime
+    if fido_mime_puid[0]:
+        mime_dict['fido'] = fido_mime_puid[0]
     if magic_mime:
         mime_dict['python-magic'] = magic_mime
-    return mime_dict
+    return (mime_dict, fido_mime_puid[1])
 
 
 def find_character_set(bytes_payload):
@@ -125,10 +128,14 @@ def create_warcinfo_payload(new_file, operator=None, publisher=None):
     return warcinfo_payload
 
 
-def create_string_payload(fido, mime_dict, result_dict, lang_cld):
-    puid = '\n{0} {1}'.format(PUID_TITLE, fido.puid) if fido.puid is not None else None
-    mime_str = '{0} {1}'.format(MIME_TITLE, mime_dict)
-    string_payload = mime_str
+def create_string_payload(fido_mime_puid, result_dict, lang_cld):
+    """Collect content mime, puid, encoding, and language to create record payload."""
+    string_payload = ''
+    puid = '\n{0} {1}'.format(PUID_TITLE,
+                              fido_mime_puid[1]) if fido_mime_puid[1] is not None else None
+    if fido_mime_puid[0] is not {}:
+        mime_str = '{0} {1}'.format(MIME_TITLE, fido_mime_puid[0])
+        string_payload += mime_str
     if puid:
         string_payload += puid
     if result_dict.get('encoding'):
@@ -195,17 +202,27 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
 
             print(url)
             payload.seek(0)
-            mime_dict = find_mime_and_puid(fido, payload)
-
+            mime_and_puid = find_mime_and_puid(fido, payload)
             result_dict = {}
             lang_cld = None
-            if fido.mime is None:
-                fido.mime = mime_dict.get('python-magic')
-            if fido.mime is None:
-                continue
-            else:
-                text_format_mimes = re.compile(r'(text|html|xml)')  # this may change
-                if text_format_mimes.search(fido.mime):
+            if mime_and_puid[0] is not {}:
+                if mime_and_puid[0].get('fido'):
+                    record_mime = mime_and_puid[0].get('fido')
+                else:
+                    record_mime = mime_and_puid[0].get('python-magic')
+                if mime_and_puid[0].get('fido') and mime_and_puid[0].get('python-magic'):
+                    mimes = "r'(" + mime_and_puid[0].get('fido') + "|" + mime_and_puid[0].get('python-magic') + ")'"
+                    # Check that the format matches either mime type.
+                    if TEXT_FORMAT_MIMES.search(mimes):
+                        payload.seek(0)
+                        bytes_payload = payload.read()
+                        result_dict = find_character_set(bytes_payload)
+                        lang_cld = find_language(bytes_payload)
+                        text_mime += 1
+                    else:
+                        non_text += 1
+                # Check that the format matches one mime type, if we didn't get both.
+                elif TEXT_FORMAT_MIMES.search(record_mime):
                     payload.seek(0)
                     bytes_payload = payload.read()
                     result_dict = find_character_set(bytes_payload)
@@ -213,7 +230,9 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
                     text_mime += 1
                 else:
                     non_text += 1
-            string_payload = create_string_payload(fido, mime_dict, result_dict, lang_cld)
+            string_payload = create_string_payload(mime_and_puid, result_dict, lang_cld)
+            if not string_payload:
+                continue
             record_count += 1
             meta_record = writer.create_warc_record(url,
                                                     'metadata',
@@ -229,7 +248,7 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
             logging.info('Finished creating sidecar in %s',
                          str(timedelta(seconds=(time.time() - start))))
             logging.info('Found %s record(s)', record_count)
-    print('Mimes: ' + str(text_mime + non_text))
+    print('Records with Mime Types: ' + str(text_mime + non_text))
     logging.info('Total Records for this WARC file: %s', total_records)
     print('Total Records for this WARC file:', total_records)
 
