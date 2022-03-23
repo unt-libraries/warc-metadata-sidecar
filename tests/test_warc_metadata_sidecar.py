@@ -110,7 +110,7 @@ class Test_Warc_Metadata_Sidecar:
         m_find_mime.return_value = ({'fido': 'text/html'}, 'fmt/471')
         sidecar.metadata_sidecar(str(tmpdir), TEXT_TEST_FILE)
         assert 'Logging WARC metadata record information for %s', TEXT_TEST_FILE in caplog.text
-        assert 'Found 1 record(s)' in caplog.text
+        assert 'Found 1 response/resource record(s)' in caplog.text
         assert tmpdir / 'text.warc.meta.gz' in tmpdir.listdir()
         assert writer.write_record.call_count == 2
         m_warcinfo.assert_called_with('text.warc', None, None)
