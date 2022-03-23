@@ -206,23 +206,15 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
             result_dict = {}
             lang_cld = None
             if mime_and_puid[0] is not {}:
-                if mime_and_puid[0].get('fido'):
-                    record_mime = mime_and_puid[0].get('fido')
-                else:
-                    record_mime = mime_and_puid[0].get('python-magic')
                 if mime_and_puid[0].get('fido') and mime_and_puid[0].get('python-magic'):
-                    mimes = "r'(" + mime_and_puid[0].get('fido') + "|" + mime_and_puid[0].get('python-magic') + ")'"
-                    # Check that the format matches either mime type.
-                    if TEXT_FORMAT_MIMES.search(mimes):
-                        payload.seek(0)
-                        bytes_payload = payload.read()
-                        result_dict = find_character_set(bytes_payload)
-                        lang_cld = find_language(bytes_payload)
-                        text_mime += 1
+                    record_mime = "r'(" + mime_and_puid[0].get('fido') + "|" + mime_and_puid[0].get('python-magic') + ")'"
+                else:
+                    if mime_and_puid[0].get('fido'):
+                        record_mime = mime_and_puid[0].get('fido')
                     else:
-                        non_text += 1
-                # Check that the format matches one mime type, if we didn't get both.
-                elif TEXT_FORMAT_MIMES.search(record_mime):
+                        record_mime = mime_and_puid[0].get('python-magic')
+                # Check that the format matches either mime type or just the one.
+                if TEXT_FORMAT_MIMES.search(record_mime):
                     payload.seek(0)
                     bytes_payload = payload.read()
                     result_dict = find_character_set(bytes_payload)
@@ -247,7 +239,7 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
         else:
             logging.info('Finished creating sidecar in %s',
                          str(timedelta(seconds=(time.time() - start))))
-            logging.info('Found %s record(s)', record_count)
+            logging.info('Found %s response/resource record(s)', record_count)
     print('Records with Mime Types: ' + str(text_mime + non_text))
     logging.info('Total Records for this WARC file: %s', total_records)
     print('Total Records for this WARC file:', total_records)
