@@ -200,16 +200,15 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
             mime_dict, puid = find_mime_and_puid(fido, payload)
             result_dict = {}
             lang_cld = None
-            if mime_dict:
-                # If these text formats are in the mime type(s), find the encoding and language.
-                if TEXT_FORMAT_MIMES.search(' '.join(mime_dict.values())):
-                    payload.seek(0)
-                    bytes_payload = payload.read()
-                    result_dict = find_character_set(bytes_payload)
-                    lang_cld = find_language(bytes_payload)
-                    text_mime += 1
-                else:
-                    non_text += 1
+            # If these text formats are in the mime type(s), find the encoding and language.
+            if TEXT_FORMAT_MIMES.search(' '.join(mime_dict.values())):
+                payload.seek(0)
+                bytes_payload = payload.read()
+                result_dict = find_character_set(bytes_payload)
+                lang_cld = find_language(bytes_payload)
+                text_mime += 1
+            else:
+                non_text += 1
             string_payload = create_string_payload(mime_dict, puid, result_dict, lang_cld)
             if not string_payload:
                 continue
@@ -227,7 +226,8 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
         else:
             logging.info('Finished creating sidecar in %s',
                          str(timedelta(seconds=(time.time() - start))))
-            logging.info('Determined sidecar information for %s response/resource record(s)', record_count)
+            logging.info('Determined sidecar information for %s response/resource record(s)',
+                         record_count)
     print('Records with Mime Types: ' + str(text_mime + non_text))
     logging.info('Total Records for this WARC file: %s', total_records)
     print('Total Records for this WARC file:', total_records)
