@@ -84,10 +84,9 @@ def test_create_warcinfo_payload():
 def test_create_string_payload():
     mime_dict = {'fido': 'text/html', 'python-magic': 'text/html'}
     puid = 'fmt/471'
-    mime_and_puid = (mime_dict, puid)
     result_dict = {'encoding': 'ascii', 'confidence': 1.0}
     lang_cld = RECORD_LANG_DICT
-    payload = sidecar.create_string_payload(mime_and_puid, result_dict, lang_cld)
+    payload = sidecar.create_string_payload(mime_dict, puid, result_dict, lang_cld)
     assert payload == '{0} {1}\n{2} {3}\n{4} {5}\n{6} {7}'.format(
                             sidecar.MIME_TITLE, mime_dict,
                             sidecar.PUID_TITLE, puid,
@@ -110,7 +109,7 @@ class Test_Warc_Metadata_Sidecar:
         m_find_mime.return_value = ({'fido': 'text/html'}, 'fmt/471')
         sidecar.metadata_sidecar(str(tmpdir), TEXT_TEST_FILE)
         assert 'Logging WARC metadata record information for %s', TEXT_TEST_FILE in caplog.text
-        assert 'Found 1 response/resource record(s)' in caplog.text
+        assert 'Determined sidecar information for 1 response/resource record(s)' in caplog.text
         assert tmpdir / 'text.warc.meta.gz' in tmpdir.listdir()
         assert writer.write_record.call_count == 2
         m_warcinfo.assert_called_with('text.warc', None, None)
