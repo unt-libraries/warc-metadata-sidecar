@@ -1,0 +1,9 @@
+WARC/0.18
+WARC-Type: response
+WARC-Target-URI: dns:cio.gov
+WARC-Date: 2009-01-20T16:30:21Z
+WARC-IP-Address: 129.120.210.254
+WARC-Record-ID: <urn:uuid:666f4f1f-1548-4466-a370-0b830c907ead>
+Content-Type: text/dns
+Content-Length: 49
+
