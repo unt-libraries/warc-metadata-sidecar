@@ -170,7 +170,7 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
         non_text = 0
         fido = ExtendFido()
 
-        writer = WARCWriter(output, gzip=False)  # TODO: gzip will equal True
+        writer = WARCWriter(output, gzip=True)
         warc_info = create_warcinfo_payload(new_file, operator, publisher)
         # Create warcinfo record and write it into sidecar.
         warcinfo_record = writer.create_warcinfo_record(meta_file, warc_info)
