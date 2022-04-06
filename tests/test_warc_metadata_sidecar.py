@@ -17,6 +17,7 @@ TEXT_TEST_FILE = os.path.join(TEST_DIR, 'text.warc')
 DNS_TEST_FILE = os.path.join(TEST_DIR, 'dns.warc')
 IMAGE_TEST_FILE = os.path.join(TEST_DIR, 'gif.warc')
 REVISIT_TEST_FILE = os.path.join(TEST_DIR, 'revisit.warc')
+ARC_TEST_FILE = os.path.join(TEST_DIR, 'text.arc')
 
 RECORD1 = {'url': 'https://www.unt.edu',
            'payload': io.BytesIO(b'<!DOCTYPE html>\n<!--[if IE 8]>\n'
@@ -158,3 +159,13 @@ class Test_Warc_Metadata_Sidecar:
         assert 'Deleted sidecar, no records to collect.' in caplog.text
         assert tmpdir / 'revist.warc.meta.gz' not in tmpdir.listdir()
         mock_warcwriter.assert_called_once()
+
+    def test_arc_metadata_record_has_no_concurrent_id(self, tmpdir):
+        sidecar.metadata_sidecar(str(tmpdir), ARC_TEST_FILE)
+        assert tmpdir / 'text.warc.meta.gz' in tmpdir.listdir()
+        path = os.path.join(tmpdir / 'text.warc.meta.gz')
+        with open(path, 'rb') as stream:
+            for record in ArchiveIterator(stream):
+                if record.rec_type == 'metadata':
+                    concurrent_id = record.rec_headers.get_header('WARC-Concurrent-ID')
+        assert not concurrent_id
