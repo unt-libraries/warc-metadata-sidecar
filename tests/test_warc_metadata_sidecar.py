@@ -160,12 +160,14 @@ class Test_Warc_Metadata_Sidecar:
         assert tmpdir / 'revist.warc.meta.gz' not in tmpdir.listdir()
         mock_warcwriter.assert_called_once()
 
-    def test_arc_metadata_record_has_no_concurrent_id(self, tmpdir):
+    def test_arc_record_has_no_concurrent_or_warcinfo_id(self, tmpdir):
         sidecar.metadata_sidecar(str(tmpdir), ARC_TEST_FILE)
-        assert tmpdir / 'text.warc.meta.gz' in tmpdir.listdir()
         path = os.path.join(tmpdir / 'text.warc.meta.gz')
+        assert path in tmpdir.listdir()
         with open(path, 'rb') as stream:
             for record in ArchiveIterator(stream):
                 if record.rec_type == 'metadata':
                     concurrent_id = record.rec_headers.get_header('WARC-Concurrent-ID')
+                    warcinfo_id = record.rec_headers.get_header('WARC-Warcinfo-ID')
         assert not concurrent_id
+        assert not warcinfo_id
