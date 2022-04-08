@@ -27,7 +27,7 @@ BAD_CHARS = regex.compile(r'\p{Cc}|\p{Cs}|\p{Cn}')
 
 TEXT_FORMAT_MIMES = re.compile(r'(text|html|xml)')  # this may change
 
-ARC = re.compile(r'.*\.arc(\.gz)?')
+ARC = re.compile(r'.*\.arc(\.gz)?$')
 
 
 class ExtendFido(Fido):
