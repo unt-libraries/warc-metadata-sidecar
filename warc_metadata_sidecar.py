@@ -27,6 +27,8 @@ BAD_CHARS = regex.compile(r'\p{Cc}|\p{Cs}|\p{Cn}')
 
 TEXT_FORMAT_MIMES = re.compile(r'(text|html|xml)')  # this may change
 
+ARC = re.compile(r'.*(\.arc)(\.gz)?')
+
 
 class ExtendFido(Fido):
     """A class that extends Fido to override some methods."""
@@ -163,7 +165,7 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
     warc_file_path = os.path.join(archive_dir, meta_file)
     # Determine the type of file we are processing, WARC or ARC.
     warc = True
-    if '.arc' in new_file:
+    if ARC.search(new_file):
         warc = False
 
     # Open the sidecar file to write in the metadata, open the warc file to get each record.
