@@ -27,6 +27,8 @@ BAD_CHARS = regex.compile(r'\p{Cc}|\p{Cs}|\p{Cn}')
 
 TEXT_FORMAT_MIMES = re.compile(r'(text|html|xml)')  # this may change
 
+ARC = re.compile(r'.*\.arc(\.gz)?$')
+
 
 class ExtendFido(Fido):
     """A class that extends Fido to override some methods."""
@@ -158,9 +160,13 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
 
     # Create sidecar filename, adding 'meta' as extension.
     new_file = os.path.basename(warc_file)
-    meta_file = re.sub(r'warc(\.gz)?$', 'warc.meta.gz', new_file)
+    meta_file = re.sub(r'w?arc(\.gz)?$', 'warc.meta.gz', new_file)
     logging.info('Creating sidecar %s', meta_file)
     warc_file_path = os.path.join(archive_dir, meta_file)
+    # Determine the type of file we are processing, WARC or ARC.
+    warc = True
+    if ARC.match(new_file):
+        warc = False
 
     # Open the sidecar file to write in the metadata, open the warc file to get each record.
     with open(warc_file_path, 'ab') as output, open(warc_file, 'rb') as stream:
@@ -176,7 +182,7 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
         warcinfo_record = writer.create_warcinfo_record(meta_file, warc_info)
         writer.write_record(warcinfo_record)
 
-        for record in ArchiveIterator(stream):
+        for record in ArchiveIterator(stream, arc2warc=True):
             total_records += 1
             if record.rec_type not in ['response', 'resource']:
                 continue
@@ -186,14 +192,17 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
             # The payload is how we find the important info. Skip record if empty.
             if not payload.read(1):
                 continue
+            # Define specific warc_headers to include in sidecar.
             url = record.rec_headers.get_header('WARC-Target-URI')
             record_date = record.rec_headers.get_header('WARC-Date')
-            warcinfo_id = record.rec_headers.get_header('WARC-Warcinfo-ID')
-            warcrecord_id = record.rec_headers.get_header('WARC-Record-ID')
-            # Define specific warc_headers to include in sidecar.
-            warc_dict = {'WARC-Date': record_date, 'WARC-Concurrent-ID': warcrecord_id}
-            if warcinfo_id:
-                warc_dict['WARC-Warcinfo-ID'] = warcinfo_id
+            if warc:
+                warcinfo_id = record.rec_headers.get_header('WARC-Warcinfo-ID')
+                warcrecord_id = record.rec_headers.get_header('WARC-Record-ID')
+                warc_dict = {'WARC-Date': record_date, 'WARC-Concurrent-ID': warcrecord_id}
+                if warcinfo_id:
+                    warc_dict['WARC-Warcinfo-ID'] = warcinfo_id
+            else:
+                warc_dict = {'WARC-Date': record_date}
 
             print(url)
             payload.seek(0)
