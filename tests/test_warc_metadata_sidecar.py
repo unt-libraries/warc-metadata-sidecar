@@ -167,7 +167,5 @@ class Test_Warc_Metadata_Sidecar:
         with open(path, 'rb') as stream:
             for record in ArchiveIterator(stream):
                 if record.rec_type == 'metadata':
-                    concurrent_id = record.rec_headers.get_header('WARC-Concurrent-ID')
-                    warcinfo_id = record.rec_headers.get_header('WARC-Warcinfo-ID')
-        assert not concurrent_id
-        assert not warcinfo_id
+                    assert record.rec_headers.get_header('WARC-Concurrent-ID') is None
+                    assert record.rec_headers.get_header('WARC-Warcinfo-ID') is None
