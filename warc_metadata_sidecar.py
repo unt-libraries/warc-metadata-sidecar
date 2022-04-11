@@ -160,7 +160,7 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
 
     # Create sidecar filename, adding 'meta' as extension.
     new_file = os.path.basename(warc_file)
-    meta_file = re.sub(r'(warc|arc)(\.gz)?$', 'warc.meta.gz', new_file)
+    meta_file = re.sub(r'w?arc(\.gz)?$', 'warc.meta.gz', new_file)
     logging.info('Creating sidecar %s', meta_file)
     warc_file_path = os.path.join(archive_dir, meta_file)
     # Determine the type of file we are processing, WARC or ARC.
