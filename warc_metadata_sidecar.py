@@ -117,7 +117,7 @@ def find_language(bytes_load):
 
 
 def determine_soft404(bytes_payload):
-    """Detect if the record is a soft 404 record."""
+    """Determine the probability of the record being a soft 404 record."""
     detected = soft404.probability(bytes_payload.decode('utf-8', 'replace'))
     if detected:
         return detected
