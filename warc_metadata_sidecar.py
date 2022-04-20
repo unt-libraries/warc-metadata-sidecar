@@ -118,11 +118,7 @@ def find_language(bytes_load):
 
 def determine_soft404(bytes_payload):
     """Determine the probability of the record being a soft 404 record."""
-    detected = soft404.probability(bytes_payload.decode('utf-8', 'replace'))
-    if detected:
-        return detected
-    else:
-        return None
+    return soft404.probability(bytes_payload.decode('utf-8', 'replace'))
 
 
 def create_warcinfo_payload(new_file, operator=None, publisher=None):
@@ -154,7 +150,7 @@ def create_string_payload(mime_dict, puid, result_dict, lang_cld, soft404):
         payload.append('{0} {1}'.format(CHARSET_TITLE, result_dict))
     if lang_cld:
         payload.append('{0} {1}'.format(LANGUAGE_TITLE, lang_cld))
-    if soft404:
+    if soft404 is not None:
         payload.append('{0} {1}'.format(SOFT404_TITLE, soft404))
     return '\n'.join(payload)
 
@@ -201,9 +197,6 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
             total_records += 1
             if record.rec_type not in ['response', 'resource']:
                 continue
-            if 'text/dns' in record.rec_headers.get_header('Content-Type'):
-                continue
-            # Determine if record is a dns, specifically for ARC records.
             url = record.rec_headers.get_header('WARC-Target-URI')
             if DNS.match(url):
                 continue
@@ -229,11 +222,6 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
             soft404_detected = None
             result_dict = {}
             lang_cld = None
-            # Determine the soft404 probability on html records.
-            status = record.http_headers.get_statuscode()
-            if status == '200' and 'html' in mimes_found:
-                payload.seek(0)
-                soft404_detected = determine_soft404(payload.read())
             # If these text formats are in the mime type(s), find the encoding and language.
             if TEXT_FORMAT_MIMES.search(mimes_found):
                 payload.seek(0)
@@ -241,6 +229,10 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
                 result_dict = find_character_set(bytes_payload)
                 lang_cld = find_language(bytes_payload)
                 text_mime += 1
+                # Determine the soft404 probability on html records.
+                status = record.http_headers.get_statuscode()
+                if status == '200' and 'html' in mimes_found:
+                    soft404_detected = determine_soft404(bytes_payload)
             else:
                 non_text += 1
             string_payload = create_string_payload(mime_dict, puid, result_dict,
