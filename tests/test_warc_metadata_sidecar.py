@@ -76,10 +76,12 @@ def test_unknown_language():
     assert language is None
 
 
-def test_determine_sof404():
+@patch('soft404.probability', return_value='0.978654321')
+def test_determine_sof404(m_soft404):
     soft404_page = b'<h1>Page Not Found<h1>'
     detected = sidecar.determine_soft404(soft404_page)
-    assert detected
+    m_soft404.assert_called_once()
+    assert detected == '0.978654321'
 
 
 def test_create_warcinfo_payload():
@@ -105,6 +107,7 @@ def test_create_string_payload():
 
 class Test_Warc_Metadata_Sidecar:
 
+    @patch('warc_metadata_sidecar.determine_soft404')
     @patch('warc_metadata_sidecar.find_mime_and_puid')
     @patch('warc_metadata_sidecar.find_character_set')
     @patch('warc_metadata_sidecar.find_language')
@@ -112,7 +115,7 @@ class Test_Warc_Metadata_Sidecar:
     @patch('warc_metadata_sidecar.create_warcinfo_payload')
     @patch('warc_metadata_sidecar.WARCWriter')
     def test_metadata_sidecar(self, mock_warcwriter, m_warcinfo, m_create_payload, m_lang,
-                              m_charset, m_find_mime, caplog, tmpdir):
+                              m_charset, m_find_mime, m_soft404, caplog, tmpdir):
         caplog.set_level(INFO)
         writer = mock_warcwriter.return_value
         m_find_mime.return_value = ({'fido': 'text/html'}, 'fmt/471')
@@ -129,6 +132,7 @@ class Test_Warc_Metadata_Sidecar:
         m_lang.assert_called_once()
         m_charset.assert_called_once()
         m_find_mime.assert_called_once()
+        m_soft404.assert_called_once()
 
     @patch('warc_metadata_sidecar.WARCWriter')
     def test_metadata_sidecar_dns_record(self, mock_warcwriter, caplog, tmpdir):
