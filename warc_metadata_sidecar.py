@@ -13,6 +13,7 @@ from datetime import timedelta
 import chardet
 import magic
 import pycld2 as cld2
+import soft404
 from fido.fido import Fido
 from warcio.archiveiterator import ArchiveIterator
 from warcio.warcwriter import WARCWriter
@@ -22,12 +23,15 @@ MIME_TITLE = 'Identified-Payload-Type:'
 PUID_TITLE = 'Preservation-Identifier:'
 CHARSET_TITLE = 'Charset-Detected:'
 LANGUAGE_TITLE = 'Languages-cld2:'
+SOFT404_TITLE = 'Soft-404-Detected:'
 
 BAD_CHARS = regex.compile(r'\p{Cc}|\p{Cs}|\p{Cn}')
 
 TEXT_FORMAT_MIMES = re.compile(r'(text|html|xml)')  # this may change
 
 ARC = re.compile(r'.*\.arc(\.gz)?$')
+
+DNS = re.compile(r'^dns:')
 
 
 class ExtendFido(Fido):
@@ -112,6 +116,11 @@ def find_language(bytes_load):
         return None
 
 
+def determine_soft404(bytes_payload):
+    """Determine the probability of the record being a soft 404 record."""
+    return soft404.probability(bytes_payload.decode('utf-8', 'replace'))
+
+
 def create_warcinfo_payload(new_file, operator=None, publisher=None):
     """Collect WARC fields to create warcinfo record payload."""
     hostname = socket.gethostname()
@@ -130,7 +139,7 @@ def create_warcinfo_payload(new_file, operator=None, publisher=None):
     return warcinfo_payload
 
 
-def create_string_payload(mime_dict, puid, result_dict, lang_cld):
+def create_string_payload(mime_dict, puid, result_dict, lang_cld, soft404):
     """Collect content mime, puid, encoding, and language to create record payload."""
     payload = []
     if mime_dict:
@@ -141,6 +150,8 @@ def create_string_payload(mime_dict, puid, result_dict, lang_cld):
         payload.append('{0} {1}'.format(CHARSET_TITLE, result_dict))
     if lang_cld:
         payload.append('{0} {1}'.format(LANGUAGE_TITLE, lang_cld))
+    if soft404 is not None:
+        payload.append('{0} {1}'.format(SOFT404_TITLE, soft404))
     return '\n'.join(payload)
 
 
@@ -186,14 +197,14 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
             total_records += 1
             if record.rec_type not in ['response', 'resource']:
                 continue
-            if 'text/dns' in record.rec_headers.get_header('Content-Type'):
+            url = record.rec_headers.get_header('WARC-Target-URI')
+            if DNS.match(url):
                 continue
-            payload = io.BytesIO(record.content_stream().read())
             # The payload is how we find the important info. Skip record if empty.
+            payload = io.BytesIO(record.content_stream().read())
             if not payload.read(1):
                 continue
             # Define specific warc_headers to include in sidecar.
-            url = record.rec_headers.get_header('WARC-Target-URI')
             record_date = record.rec_headers.get_header('WARC-Date')
             if warc:
                 warcinfo_id = record.rec_headers.get_header('WARC-Warcinfo-ID')
@@ -207,18 +218,25 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
             print(url)
             payload.seek(0)
             mime_dict, puid = find_mime_and_puid(fido, payload)
+            mimes_found = ' '.join(mime_dict.values())
+            soft404_detected = None
             result_dict = {}
             lang_cld = None
             # If these text formats are in the mime type(s), find the encoding and language.
-            if TEXT_FORMAT_MIMES.search(' '.join(mime_dict.values())):
+            if TEXT_FORMAT_MIMES.search(mimes_found):
                 payload.seek(0)
                 bytes_payload = payload.read()
                 result_dict = find_character_set(bytes_payload)
                 lang_cld = find_language(bytes_payload)
                 text_mime += 1
+                # Determine the soft404 probability on html records.
+                status = record.http_headers.get_statuscode()
+                if status == '200' and 'html' in mimes_found:
+                    soft404_detected = determine_soft404(bytes_payload)
             else:
                 non_text += 1
-            string_payload = create_string_payload(mime_dict, puid, result_dict, lang_cld)
+            string_payload = create_string_payload(mime_dict, puid, result_dict,
+                                                   lang_cld, soft404_detected)
             if not string_payload:
                 continue
             record_count += 1

@@ -76,6 +76,14 @@ def test_unknown_language():
     assert language is None
 
 
+@patch('soft404.probability', return_value='0.978654321')
+def test_determine_sof404(m_soft404):
+    soft404_page = b'<h1>Page Not Found<h1>'
+    detected = sidecar.determine_soft404(soft404_page)
+    m_soft404.assert_called_once()
+    assert detected == '0.978654321'
+
+
 def test_create_warcinfo_payload():
     publisher = 'University of North Texas - Digital Projects Unit'
     warcinfo = sidecar.create_warcinfo_payload('sample.warc', None, publisher)
@@ -87,16 +95,19 @@ def test_create_string_payload():
     puid = 'fmt/471'
     result_dict = {'encoding': 'ascii', 'confidence': 1.0}
     lang_cld = RECORD_LANG_DICT
-    payload = sidecar.create_string_payload(mime_dict, puid, result_dict, lang_cld)
-    assert payload == '{0} {1}\n{2} {3}\n{4} {5}\n{6} {7}'.format(
+    soft_404 = '0.022243212227210058'
+    payload = sidecar.create_string_payload(mime_dict, puid, result_dict, lang_cld, soft_404)
+    assert payload == '{0} {1}\n{2} {3}\n{4} {5}\n{6} {7}\n{8} {9}'.format(
                             sidecar.MIME_TITLE, mime_dict,
                             sidecar.PUID_TITLE, puid,
                             sidecar.CHARSET_TITLE, result_dict,
-                            sidecar.LANGUAGE_TITLE, lang_cld)
+                            sidecar.LANGUAGE_TITLE, lang_cld,
+                            sidecar.SOFT404_TITLE, soft_404)
 
 
 class Test_Warc_Metadata_Sidecar:
 
+    @patch('warc_metadata_sidecar.determine_soft404')
     @patch('warc_metadata_sidecar.find_mime_and_puid')
     @patch('warc_metadata_sidecar.find_character_set')
     @patch('warc_metadata_sidecar.find_language')
@@ -104,7 +115,7 @@ class Test_Warc_Metadata_Sidecar:
     @patch('warc_metadata_sidecar.create_warcinfo_payload')
     @patch('warc_metadata_sidecar.WARCWriter')
     def test_metadata_sidecar(self, mock_warcwriter, m_warcinfo, m_create_payload, m_lang,
-                              m_charset, m_find_mime, caplog, tmpdir):
+                              m_charset, m_find_mime, m_soft404, caplog, tmpdir):
         caplog.set_level(INFO)
         writer = mock_warcwriter.return_value
         m_find_mime.return_value = ({'fido': 'text/html'}, 'fmt/471')
@@ -121,6 +132,7 @@ class Test_Warc_Metadata_Sidecar:
         m_lang.assert_called_once()
         m_charset.assert_called_once()
         m_find_mime.assert_called_once()
+        m_soft404.assert_called_once()
 
     @patch('warc_metadata_sidecar.WARCWriter')
     def test_metadata_sidecar_dns_record(self, mock_warcwriter, caplog, tmpdir):
@@ -136,13 +148,15 @@ class Test_Warc_Metadata_Sidecar:
 
     @patch('warc_metadata_sidecar.find_character_set')
     @patch('warc_metadata_sidecar.find_language')
-    def test_metadata_sidecar_image_record(self, mock_language, mock_character, tmpdir):
+    @patch('warc_metadata_sidecar.determine_soft404')
+    def test_metadata_sidecar_image_record(self, mock_404, mock_language, mock_character, tmpdir):
         img_payload = '{0} {1}\n{2} {3}'.format(
                             sidecar.MIME_TITLE, {'fido': 'image/gif', 'python-magic': 'image/gif'},
                             sidecar.PUID_TITLE, 'fmt/4').encode('utf-8')
         sidecar.metadata_sidecar(str(tmpdir), IMAGE_TEST_FILE)
         mock_language.assert_not_called()
         mock_character.assert_not_called()
+        mock_404.assert_not_called()
         assert tmpdir / 'gif.warc.meta.gz' in tmpdir.listdir()
         path = os.path.join(tmpdir / 'gif.warc.meta.gz')
         with open(path, 'rb') as stream:
