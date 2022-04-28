@@ -15,7 +15,7 @@ setup(
     author='University of North Texas Libraries',
     author_email='gracie.flores@unt.edu',
     license='',
-    py_modules=['warc_metadata_sidecar'],
+    py_modules=['warc_metadata_sidecar', 'sidecar2cdxj'],
     scripts=['warc_metadata_sidecar.py', 'sidecar2cdxj.py'],
     description='A script that creates a metadata sidecar file from a WARC file',
     long_description=long_description,
