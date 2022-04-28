@@ -5,4 +5,4 @@ pycld2==0.41
 python-magic==0.4.25
 regex==2022.1.18
 soft-404==0.4.0
-surt
+surt==0.3.1

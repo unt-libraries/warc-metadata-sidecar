@@ -1,5 +1,5 @@
 import argparse
-import io
+import ast
 import json
 import os
 import re
@@ -21,14 +21,16 @@ def create_sidecar_cdxj(sidecar_file, archive_dir):
         for record in ArchiveIterator(stream):
             if record.rec_type == 'warcinfo':
                 continue
-            payload = io.BytesIO(record.content_stream().read())
-            payload.seek(0)
-            string_payload = payload.read().decode("utf-8")
+            string_payload = record.content_stream().read().decode("utf-8")
             payload_list = string_payload.split('\n')
             new_dict = {}
             for item in payload_list:
-                new_item = item.split(': ', 1)
-                new_dict[new_item[0]] = new_item[1]
+                item_list = item.split(': ', 1)
+                try:
+                    item_value = ast.literal_eval(item_list[1])
+                    new_dict[item_list[0]] = item_value
+                except ValueError:
+                    new_dict[item_list[0]] = item_list[1]
             surt_url = surt.surt(record.rec_headers.get_header('WARC-Target-URI'))
             ts = iso_date_to_timestamp(record.rec_headers.get_header('WARC-Date'))
             out.write(surt_url + " " + ts + " " + json.dumps(new_dict) + "\n")
