@@ -21,7 +21,7 @@ def create_sidecar_cdxj(sidecar_file, archive_dir):
         for record in ArchiveIterator(stream):
             if record.rec_type == 'warcinfo':
                 continue
-            string_payload = record.content_stream().read().decode("utf-8")
+            string_payload = record.content_stream().read().decode('utf-8')
             payload_list = string_payload.split('\n')
             new_dict = {}
             for item in payload_list:
@@ -33,7 +33,7 @@ def create_sidecar_cdxj(sidecar_file, archive_dir):
                     new_dict[item_list[0]] = item_list[1]
             surt_url = surt.surt(record.rec_headers.get_header('WARC-Target-URI'))
             ts = iso_date_to_timestamp(record.rec_headers.get_header('WARC-Date'))
-            out.write(surt_url + " " + ts + " " + json.dumps(new_dict) + "\n")
+            out.write(surt_url + ' ' + ts + ' ' + json.dumps(new_dict) + '\n')
 
 
 def main():
