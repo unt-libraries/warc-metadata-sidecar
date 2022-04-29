@@ -15,9 +15,9 @@ def create_sidecar_cdxj(sidecar_file, archive_dir):
 
     warc_file = os.path.basename(sidecar_file)
     cdxj_file = re.sub('warc.meta.gz', 'cdxj', warc_file)
-    sidecar_file_path = os.path.join(archive_dir, cdxj_file)
+    cdxj_path = os.path.join(archive_dir, cdxj_file)
 
-    with open(sidecar_file_path, 'wt') as out, open(sidecar_file, 'rb') as stream:
+    with open(cdxj_path, 'wt') as out, open(sidecar_file, 'rb') as stream:
         for record in ArchiveIterator(stream):
             if record.rec_type == 'warcinfo':
                 continue
@@ -25,12 +25,12 @@ def create_sidecar_cdxj(sidecar_file, archive_dir):
             payload_list = string_payload.split('\n')
             new_dict = {}
             for item in payload_list:
-                item_list = item.split(': ', 1)
+                item_key, value = item.split(': ', 1)
                 try:
-                    item_value = ast.literal_eval(item_list[1])
-                    new_dict[item_list[0]] = item_value
+                    new_value = ast.literal_eval(value)
+                    new_dict[item_key] = new_value
                 except ValueError:
-                    new_dict[item_list[0]] = item_list[1]
+                    new_dict[item_key] = value
             surt_url = surt.surt(record.rec_headers.get_header('WARC-Target-URI'))
             ts = iso_date_to_timestamp(record.rec_headers.get_header('WARC-Date'))
             out.write(surt_url + ' ' + ts + ' ' + json.dumps(new_dict) + '\n')
