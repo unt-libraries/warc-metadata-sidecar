@@ -3,7 +3,7 @@
 [![Build Status](https://github.com/unt-libraries/warc-metadata-sidecar/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/unt-libraries/warc-metadata-sidecar/actions)
 
 This library is intended to extract data into a metadata sidecar from WARC/ARC files and convert the
-sidecar data into a cdxj file.
+sidecar data into a CDXJ file.
 
 ## Installation
 
@@ -34,7 +34,8 @@ Example:
 
 ## sidecar2cdxj.py
 
-This script will take the uri, timestamp, and fields from the payload of each record and write the data into a file using the cdxj format.
+This script will take the URI, timestamp, and fields from the payload of each metadata record in a
+sidecar file and write the data into a file using the CDXJ format.
 
 For usage instructions run:
 
