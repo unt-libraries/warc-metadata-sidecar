@@ -1,0 +1,16 @@
+WARC/1.0
+WARC-Date: 2021-11-11T21:11:11Z
+WARC-Concurrent-ID: <urn:uuid:78b1731b-2872-4ab2-92d0-5989d0b40b3a>
+WARC-Type: metadata
+WARC-Record-ID: <urn:uuid:4752c777-2658-4790-ae27-80fa2db90d09>
+WARC-Target-URI: https://www.unt.edu
+WARC-Payload-Digest: sha1:6LEK5A2YJRWMFTG7OO3K5AXP74GAQ33M
+WARC-Block-Digest: sha1:6LEK5A2YJRWMFTG7OO3K5AXP74GAQ33M
+Content-Type: application/warc-fields
+Content-Length: 310
+
+Identified-Payload-Type: {'fido': 'text/html', 'python-magic': 'text/html'}
+Preservation-Identifier: fmt/471
+Charset-Detected: {'encoding': 'utf-8', 'confidence': 0.99}
+Languages-cld2: {'reliable': True, 'text-bytes': 7896, 'languages': [{'name': 'ENGLISH', 'code': 'en', 'text-covered': 99, 'score': 1070.0}]}
+
