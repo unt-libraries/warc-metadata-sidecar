@@ -41,12 +41,12 @@ def main():
     parser.add_argument(
         'sidecar_file',
         action='store',
-        help='A WARC metadata sidecar file that will be used to generate a cdxj.'
+        help='A WARC metadata sidecar file that will be used to generate a CDXJ.'
     )
     parser.add_argument(
         'archive_dir',
         action='store',
-        help='A directory where the cdxj file will be stored.'
+        help='A directory where the CDXJ file will be stored.'
     )
     args = parser.parse_args()
     create_sidecar_cdxj(args.sidecar_file, args.archive_dir)
