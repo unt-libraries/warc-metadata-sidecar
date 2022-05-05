@@ -1,0 +1,34 @@
+WARC/1.0
+WARC-Type: warcinfo
+WARC-Record-ID: <urn:uuid:654a5bfc-27c5-4bb4-892f-7b0d75a93288>
+WARC-Filename: warc.warc.meta.gz
+WARC-Date: 2022-05-05T16:04:27Z
+WARC-Block-Digest: sha1:PLOVJSZYN3MDGFOXRKJACYXEBINNEDY5
+Content-Type: application/warc-fields
+Content-Length: 289
+
+software: warc-metadata-sidecar/1.0
+hostname: lsddw3264q0d1s2.library.unt.edu
+ip: 129.120.92.49
+conformsTo: http://bibnum.bnf.fr/WARC/WARC_ISO_28500_version1_latestdraft.pdf
+description: WARC metdata sidecar for warc.warc
+publisher: University of North Texas - Digital Projects Unit
+
+
+WARC/1.0
+WARC-Date: 2021-11-11T21:11:11Z
+WARC-Concurrent-ID: <urn:uuid:78b1731b-2872-4ab2-92d0-5989d0b40b3a>
+WARC-Type: metadata
+WARC-Record-ID: <urn:uuid:72f91cb9-e32a-4f97-ae09-fe4d89afc2ea>
+WARC-Target-URI: https://www.unt.edu
+WARC-Payload-Digest: sha1:JUGR3BXXMXKXWWJ5PDPGBQT2UIN4O4FY
+WARC-Block-Digest: sha1:JUGR3BXXMXKXWWJ5PDPGBQT2UIN4O4FY
+Content-Type: application/warc-fields
+Content-Length: 350
+
+Identified-Payload-Type: {'fido': 'text/html', 'python-magic': 'text/html'}
+Preservation-Identifier: fmt/471
+Charset-Detected: {'encoding': 'utf-8', 'confidence': 0.99}
+Languages-cld2: {'reliable': True, 'text-bytes': 7896, 'languages': [{'name': 'ENGLISH', 'code': 'en', 'text-covered': 99, 'score': 1070.0}]}
+Soft-404-Detected: 0.022243212227210058
+
