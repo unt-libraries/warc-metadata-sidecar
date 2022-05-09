@@ -2,12 +2,8 @@
 
 [![Build Status](https://github.com/unt-libraries/warc-metadata-sidecar/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/unt-libraries/warc-metadata-sidecar/actions)
 
-This library will consume a WARC or ARC file, read each record that is a response or resource type,
-and create a new record with metadata that will be stored in a sidecar file. The sidecar records
-will include the mimetype and puid, character set, and language if found. The character set and
-language will only be searched for 'text' formats. The extension 'meta' will be added to the
-sidecar file
-(i.e. filename.warc.gz becomes filename.warc.meta.gz and file.arc.gz becomes file.warc.meta.gz).
+This library is intended to extract data into a metadata sidecar from WARC/ARC files and convert the
+sidecar data into a CDXJ file.
 
 ## Installation
 
@@ -17,16 +13,37 @@ At the root folder of warc-metadata-sidecar, install:
 
     $ pip install -e .
 
+## warc_metadata_sidecar.py
+
+This script will consume a WARC or ARC file, read each record that is a response or resource type,
+and create a new record with metadata that will be stored in a sidecar file. The sidecar records
+will include the mimetype and puid, character set, and language if found. The character set and
+language will only be searched for 'text' formats. The extension 'meta' will be added to the
+sidecar file
+(i.e. filename.warc.gz becomes filename.warc.meta.gz and file.arc.gz becomes file.warc.meta.gz).
+
 For usage instructions run:
 
     $ warc_metadata_sidecar.py --help
 
-## Example Usage:
+Example:
 
     $ warc_metadata_sidecar.py warc_filename.warc.gz example_dirname
 
     $ warc_metadata_sidecar.py file.warc.gz dir_name --operator 'Operator Name' --publisher 'Name'
 
+## sidecar2cdxj.py
+
+This script will take the URI, timestamp, and fields from the payload of each metadata record in a
+sidecar file and write the data into a file using the CDXJ format.
+
+For usage instructions run:
+
+    $ sidecar2cdxj.py --help
+
+Example:
+
+    $ sidecar2cdxj.py sidecar_filename.warc.meta.gz directory_name
 ## Testing
 
     $ pip install pytest
