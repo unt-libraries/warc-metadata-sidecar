@@ -28,10 +28,10 @@ def convert_payload_to_json(record):
 
 def record_data_to_string(record):
     """Convert dictionary into JSON object, convert record fields and JSON into a string."""
-    new_dict = convert_payload_to_json(record)
+    json_string = convert_payload_to_json(record)
     surt_url = surt.surt(record.rec_headers.get_header('WARC-Target-URI'))
     ts = iso_date_to_timestamp(record.rec_headers.get_header('WARC-Date'))
-    return surt_url + ' ' + ts + ' ' + new_dict + '\n'
+    return surt_url + ' ' + ts + ' ' + json_string + '\n'
 
 
 def create_sidecar_cdxj(sidecar_file, archive_dir):

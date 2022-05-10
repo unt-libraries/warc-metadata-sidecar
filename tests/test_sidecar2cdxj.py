@@ -40,8 +40,8 @@ def test_create_cdxj_path(tmpdir):
 
 def test_convert_payload_to_json():
     record = get_sidecar_record(TEXT_META_FILE)
-    new_dict = sidecar2cdxj.convert_payload_to_json(record)
-    assert new_dict == CDXJ_JSON
+    json_string = sidecar2cdxj.convert_payload_to_json(record)
+    assert json_string == CDXJ_JSON
 
 
 @patch('sidecar2cdxj.convert_payload_to_json')
