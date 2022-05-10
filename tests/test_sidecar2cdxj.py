@@ -38,18 +38,18 @@ def test_create_cdxj_path(tmpdir):
     assert cdxj_path == expected_path
 
 
-def test_convert_payload_to_dict():
+def test_convert_payload_to_json():
     record = get_sidecar_record(TEXT_META_FILE)
-    new_dict = sidecar2cdxj.convert_payload_to_dict(record)
-    assert new_dict == json.loads(CDXJ_JSON)
+    new_dict = sidecar2cdxj.convert_payload_to_json(record)
+    assert new_dict == CDXJ_JSON
 
 
-@patch('sidecar2cdxj.convert_payload_to_dict')
-def test_record_data_to_string(m_dict):
-    m_dict.return_value = json.loads(CDXJ_JSON)
+@patch('sidecar2cdxj.convert_payload_to_json')
+def test_record_data_to_string(m_json):
+    m_json.return_value = CDXJ_JSON
     record = get_sidecar_record(TEXT_META_FILE)
     record_string = sidecar2cdxj.record_data_to_string(record)
-    m_dict.assert_called_once_with(record)
+    m_json.assert_called_once_with(record)
     expected = 'edu,unt)/ 20211111211111 {}\n'.format(CDXJ_JSON)
     assert record_string == expected
 
@@ -57,15 +57,15 @@ def test_record_data_to_string(m_dict):
 class Test_Create_Sidecar_Cdxj:
     @patch('sidecar2cdxj.surt.surt')
     @patch('sidecar2cdxj.iso_date_to_timestamp')
-    @patch('sidecar2cdxj.convert_payload_to_dict')
+    @patch('sidecar2cdxj.convert_payload_to_json')
     @patch('sidecar2cdxj.create_cdxj_path')
-    def test_create_sidecar_cdxj(self, m_path, m_to_dict, m_ts, m_surt, tmpdir):
+    def test_create_sidecar_cdxj(self, m_path, m_to_json, m_ts, m_surt, tmpdir):
         m_ts.return_value = '20211111211111'
         m_surt.return_value = 'edu,unt)/'
-        m_to_dict.return_value = json.loads(CDXJ_JSON)
+        m_to_json.return_value = CDXJ_JSON
         m_path.return_value = os.path.join(tmpdir / 'warc.cdxj')
         sidecar2cdxj.create_sidecar_cdxj(TEXT_META_FILE, str(tmpdir))
-        m_to_dict.assert_called_once()
+        m_to_json.assert_called_once()
         m_ts.assert_called_once_with('2021-11-11T21:11:11Z')
         m_surt.assert_called_once_with('https://www.unt.edu')
         m_path.assert_called_once_with(TEXT_META_FILE, str(tmpdir))
