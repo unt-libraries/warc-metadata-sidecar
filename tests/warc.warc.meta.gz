@@ -1,8 +1,8 @@
 WARC/1.0
 WARC-Type: warcinfo
-WARC-Record-ID: <urn:uuid:fbe3a9b8-1227-45e1-87ac-78e29e415bda>
+WARC-Record-ID: <urn:uuid:3266f48b-913d-4be9-940c-90745b4adea4>
 WARC-Filename: warc.warc.meta.gz
-WARC-Date: 2022-05-10T17:49:52Z
+WARC-Date: 2022-05-11T14:20:03Z
 WARC-Block-Digest: sha1:PLOVJSZYN3MDGFOXRKJACYXEBINNEDY5
 Content-Type: application/warc-fields
 Content-Length: 289
@@ -19,15 +19,15 @@ WARC/1.0
 WARC-Date: 2021-11-11T21:11:11Z
 WARC-Concurrent-ID: <urn:uuid:78b1731b-2872-4ab2-92d0-5989d0b40b3a>
 WARC-Type: metadata
-WARC-Record-ID: <urn:uuid:b71875c7-d2c8-40ad-ab02-b6ed556246fd>
+WARC-Record-ID: <urn:uuid:0699ab13-4da7-4e39-a351-8f6ffa1e3900>
 WARC-Target-URI: https://www.unt.edu
-WARC-Payload-Digest: sha1:NDR4YVM36HMQRAEMWTZB3IFQAYANTOVF
-WARC-Block-Digest: sha1:NDR4YVM36HMQRAEMWTZB3IFQAYANTOVF
+WARC-Payload-Digest: sha1:YOPQI7GIL3WCP4APPN3RYFVQRLAD6YHW
+WARC-Block-Digest: sha1:YOPQI7GIL3WCP4APPN3RYFVQRLAD6YHW
 Content-Type: application/warc-fields
-Content-Length: 352
+Content-Length: 350
 
 Identified-Payload-Type: {"fido": "text/html", "python-magic": "text/html"}
-Preservation-Identifier: "fmt/471"
+Preservation-Identifier: fmt/471
 Charset-Detected: {"encoding": "utf-8", "confidence": 0.99}
 Languages-cld2: {"reliable": true, "text-bytes": 7896, "languages": [{"name": "ENGLISH", "code": "en", "text-covered": 99, "score": 1070.0}]}
 Soft-404-Detected: 0.022243212227210058

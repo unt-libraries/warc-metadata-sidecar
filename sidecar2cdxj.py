@@ -16,13 +16,16 @@ def create_cdxj_path(sidecar_file, archive_dir):
 
 
 def convert_payload_to_json(record):
-    """Parse a record's payload, put the fields into a dictionary and return the dictionary."""
+    """Parse a record's payload, put the fields into a dictionary and return it as a JSON string."""
     string_payload = record.content_stream().read().decode('utf-8')
     payload_list = string_payload.split('\n')
     new_dict = {}
     for item in payload_list:
         item_key, value = item.split(': ', 1)
-        new_dict[item_key] = json.loads(value)
+        try:
+            new_dict[item_key] = json.loads(value)
+        except json.decoder.JSONDecodeError:
+            new_dict[item_key] = value
     return json.dumps(new_dict)
 
 
