@@ -146,13 +146,13 @@ def create_string_payload(mime_dict, puid, result_dict, lang_cld, soft404):
     if mime_dict:
         payload.append('{0} {1}'.format(MIME_TITLE, json.dumps(mime_dict)))
     if puid:
-        payload.append('{0} {1}'.format(PUID_TITLE, json.dumps(puid)))
+        payload.append('{0} {1}'.format(PUID_TITLE, puid))
     if result_dict.get('encoding'):
         payload.append('{0} {1}'.format(CHARSET_TITLE, json.dumps(result_dict)))
     if lang_cld:
         payload.append('{0} {1}'.format(LANGUAGE_TITLE, json.dumps(lang_cld)))
     if soft404 is not None:
-        payload.append('{0} {1}'.format(SOFT404_TITLE, json.dumps(soft404)))
+        payload.append('{0} {1}'.format(SOFT404_TITLE, soft404))
     return '\n'.join(payload)
 
 

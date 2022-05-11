@@ -100,10 +100,10 @@ def test_create_string_payload():
     payload = sidecar.create_string_payload(mime_dict, puid, result_dict, lang_cld, soft_404)
     assert payload == '{0} {1}\n{2} {3}\n{4} {5}\n{6} {7}\n{8} {9}'.format(
                             sidecar.MIME_TITLE, json.dumps(mime_dict),
-                            sidecar.PUID_TITLE, json.dumps(puid),
+                            sidecar.PUID_TITLE, puid,
                             sidecar.CHARSET_TITLE, json.dumps(result_dict),
                             sidecar.LANGUAGE_TITLE, json.dumps(lang_cld),
-                            sidecar.SOFT404_TITLE, json.dumps(soft_404))
+                            sidecar.SOFT404_TITLE, soft_404)
 
 
 class Test_Warc_Metadata_Sidecar:
@@ -151,8 +151,8 @@ class Test_Warc_Metadata_Sidecar:
     @patch('warc_metadata_sidecar.find_language')
     @patch('warc_metadata_sidecar.determine_soft404')
     def test_metadata_sidecar_image_record(self, mock_404, mock_language, mock_character, tmpdir):
-        mime_dict = json.dumps({'fido': 'image/gif', 'python-magic': 'image/gif'})
-        puid = json.dumps('fmt/4')
+        mime_dict = '{"fido": "image/gif", "python-magic": "image/gif"}'
+        puid = 'fmt/4'
         img_payload = '{0} {1}\n{2} {3}'.format(
                             sidecar.MIME_TITLE, mime_dict,
                             sidecar.PUID_TITLE, puid).encode('utf-8')
