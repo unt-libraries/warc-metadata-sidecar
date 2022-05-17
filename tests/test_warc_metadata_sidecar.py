@@ -1,4 +1,5 @@
 import io
+import json
 import os
 import socket
 from logging import INFO
@@ -98,10 +99,10 @@ def test_create_string_payload():
     soft_404 = '0.022243212227210058'
     payload = sidecar.create_string_payload(mime_dict, puid, result_dict, lang_cld, soft_404)
     assert payload == '{0} {1}\n{2} {3}\n{4} {5}\n{6} {7}\n{8} {9}'.format(
-                            sidecar.MIME_TITLE, mime_dict,
+                            sidecar.MIME_TITLE, json.dumps(mime_dict),
                             sidecar.PUID_TITLE, puid,
-                            sidecar.CHARSET_TITLE, result_dict,
-                            sidecar.LANGUAGE_TITLE, lang_cld,
+                            sidecar.CHARSET_TITLE, json.dumps(result_dict),
+                            sidecar.LANGUAGE_TITLE, json.dumps(lang_cld),
                             sidecar.SOFT404_TITLE, soft_404)
 
 
@@ -150,9 +151,11 @@ class Test_Warc_Metadata_Sidecar:
     @patch('warc_metadata_sidecar.find_language')
     @patch('warc_metadata_sidecar.determine_soft404')
     def test_metadata_sidecar_image_record(self, mock_404, mock_language, mock_character, tmpdir):
+        mime_dict = '{"fido": "image/gif", "python-magic": "image/gif"}'
+        puid = 'fmt/4'
         img_payload = '{0} {1}\n{2} {3}'.format(
-                            sidecar.MIME_TITLE, {'fido': 'image/gif', 'python-magic': 'image/gif'},
-                            sidecar.PUID_TITLE, 'fmt/4').encode('utf-8')
+                            sidecar.MIME_TITLE, mime_dict,
+                            sidecar.PUID_TITLE, puid).encode('utf-8')
         sidecar.metadata_sidecar(str(tmpdir), IMAGE_TEST_FILE)
         mock_language.assert_not_called()
         mock_character.assert_not_called()

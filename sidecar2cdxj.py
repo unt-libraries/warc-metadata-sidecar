@@ -1,5 +1,4 @@
 import argparse
-import ast
 import json
 import os
 import re
@@ -16,27 +15,26 @@ def create_cdxj_path(sidecar_file, archive_dir):
     return os.path.join(archive_dir, cdxj_file)
 
 
-def convert_payload_to_dict(record):
-    """Parse a record's payload, put the fields into a dictionary and return the dictionary."""
+def convert_payload_to_json(record):
+    """Parse a record's payload, put the fields into a dictionary and return it as a JSON string."""
     string_payload = record.content_stream().read().decode('utf-8')
     payload_list = string_payload.split('\n')
     new_dict = {}
     for item in payload_list:
         item_key, value = item.split(': ', 1)
         try:
-            new_value = ast.literal_eval(value)
-            new_dict[item_key] = new_value
-        except ValueError:
+            new_dict[item_key] = json.loads(value)
+        except json.decoder.JSONDecodeError:
             new_dict[item_key] = value
-    return new_dict
+    return json.dumps(new_dict)
 
 
 def record_data_to_string(record):
     """Convert dictionary into JSON object, convert record fields and JSON into a string."""
-    new_dict = convert_payload_to_dict(record)
+    json_string = convert_payload_to_json(record)
     surt_url = surt.surt(record.rec_headers.get_header('WARC-Target-URI'))
     ts = iso_date_to_timestamp(record.rec_headers.get_header('WARC-Date'))
-    return surt_url + ' ' + ts + ' ' + json.dumps(new_dict) + '\n'
+    return surt_url + ' ' + ts + ' ' + json_string + '\n'
 
 
 def create_sidecar_cdxj(sidecar_file, archive_dir):
