@@ -18,7 +18,6 @@ def get_alpha3_language_codes(lang_list):
         try:
             new_code = Language.get(lang_code).to_alpha3()
         except LookupError as err:
-            print(err)
             logging.error(err)
         # We only want to include the language if it has a 3 letter code.
         if len(new_code) == 3:
@@ -28,80 +27,69 @@ def get_alpha3_language_codes(lang_list):
     return lang_codes
 
 
-def get_sidecar_fields(original_obj, detail):
+def get_sidecar_fields(original_obj, meta_obj):
     """Collect the mime, charset, languages, and soft404 to add them to the original WARC dict."""
-    if detail.get('Identified-Payload-Type'):
+    if meta_obj.get('Identified-Payload-Type'):
         # Choosing python-magic over fido, due to broader choices
-        if detail['Identified-Payload-Type'].get('python-magic'):
-            mime = detail['Identified-Payload-Type']['python-magic']
+        if meta_obj['Identified-Payload-Type'].get('python-magic'):
+            mime = meta_obj['Identified-Payload-Type']['python-magic']
         else:
-            mime = detail['Identified-Payload-Type']['fido']
+            mime = meta_obj['Identified-Payload-Type']['fido']
         original_obj['mime-detected'] = mime
-    if detail.get('Charset-Detected'):
-        charset = detail['Charset-Detected']['encoding']
+    if meta_obj.get('Charset-Detected'):
+        charset = meta_obj['Charset-Detected']['encoding']
         original_obj['charset'] = charset
-    if detail.get('Languages-cld2'):
-        lang_array = detail['Languages-cld2']['languages']
+    if meta_obj.get('Languages-cld2'):
+        lang_array = meta_obj['Languages-cld2']['languages']
         new_codes = get_alpha3_language_codes(lang_array)
         if new_codes:
             original_obj['languages'] = new_codes
-    if detail.get('Soft-404-Detected'):
-        soft404 = detail['Soft-404-Detected']
+    if meta_obj.get('Soft-404-Detected'):
+        soft404 = meta_obj['Soft-404-Detected']
         original_obj['soft-404-detected'] = soft404
     return original_obj
 
 
-def merge_meta_fields(original_dict, duplicate_dict, meta_cdxj):
-    """Combine fields from the sidecar CDXJ to the matching url/timestamp of the dictionaries."""
-    matched_count = 0
-    for meta in meta_cdxj:
-        meta_urlkey, meta_timestamp, meta_obj = meta.split(' ', 2)
-        meta_urlkey_and_timestamp = meta_urlkey + ' ' + meta_timestamp
-        if original_dict.get(meta_urlkey_and_timestamp):
-            original_obj = original_dict[meta_urlkey_and_timestamp]
-            matched_count += 1
-            detail = json.loads(meta_obj)
-            updated_obj = get_sidecar_fields(original_obj, detail)
-            original_dict[meta_urlkey_and_timestamp] = updated_obj
-            # print(original_dict[meta_urlkey_and_timestamp])
-            if duplicate_dict.get(meta_urlkey_and_timestamp):
-                duplicate_obj = duplicate_dict[meta_urlkey_and_timestamp]
-                updated_duplicate_obj = get_sidecar_fields(duplicate_obj, detail)
-                duplicate_dict[meta_urlkey_and_timestamp] = updated_duplicate_obj
-    return (original_dict, duplicate_dict, matched_count)
-
-
-def create_dict_from_original(original_cdxj):
-    """Convert the JSON object into a dictionary for easy look up."""
-    original_count = 0
-    original_dict = {}
-    duplicate_dict = {}
-    # print(original_cdxj)
+def merge_meta_fields(meta_dict, original_cdxj):
+    """Find the matching keys, merge the JSON objects, then update the line for the new CDXJ."""
+    edited_count = 0
+    non_edited_count = 0
+    list_of_original = []
     for line in original_cdxj:
-        # print(line)
-        original_count += 1
-        urlkey, timestamp, main_obj = line.split(' ', 2)
-        # Combine the surt URL and timestamp to use as the 'key'.
+        urlkey, timestamp, cdxj_obj = line.split(' ', 2)
         urlkey_and_timestamp = urlkey + ' ' + timestamp
-        # print(main_obj)
-        json_obj = json.loads(main_obj)
-        if not original_dict.get(urlkey_and_timestamp):
-            original_dict[urlkey_and_timestamp] = json_obj
-        # if key already exists... do something else? make another dictionary? ignore the rest?
+        if meta_dict.get(urlkey_and_timestamp):
+            edited_count += 1
+            meta_obj = meta_dict[urlkey_and_timestamp]
+            original_obj = json.loads(cdxj_obj)
+            updated_obj = get_sidecar_fields(original_obj, meta_obj)
+            list_of_original.append(urlkey_and_timestamp + ' ' + json.dumps(updated_obj) + '\n')
         else:
-            # print(original_dict[urlkey_and_timestamp])
-            print('We have a duplicate')
-            print(urlkey_and_timestamp)
-            duplicate_dict[urlkey_and_timestamp] = json_obj
-    return (original_dict, duplicate_dict, original_count)
+            non_edited_count += 1
+            list_of_original.append(line)
+    return (list_of_original, edited_count, non_edited_count)
+
+
+def create_dict_from_meta(meta_cdxj):
+    """Convert the URL/timestamp and JSON object into a dictionary for easy look up."""
+    meta_count = 0
+    meta_dict = {}
+    for line in meta_cdxj:
+        meta_count += 1
+        m_key, timestamp, meta_obj = line.split(' ', 2)
+        key_and_timestamp = m_key + ' ' + timestamp
+        json_obj = json.loads(meta_obj)
+        meta_dict[key_and_timestamp] = json_obj
+    return (meta_dict, meta_count)
 
 
 def merge_cdxjs(metadata_cdxj, warc_cdxj, cdxj_dir):
-    """Merge fields from a sidecar cdxj into an original warc cdxj.
+    """Merge fields from a sidecar CDXJ with an original WARC CDXJ.
 
-    Finding the matching key (surt URL and timestamp) of the CDXJ's,
-    collect the wanted fields from the sidecar CDXJ and combine them
-    into the original warc CDXJ.
+    Finding the matching key (SURT URL and timestamp) of the CDXJ's,
+    collect the wanted fields from the sidecar CDXJ, combine them
+    with the original WARC CDXJ and write the combined records to a
+    new CDXJ file.
     """
     start = time.time()
     if not os.path.isdir(cdxj_dir):
@@ -124,21 +112,15 @@ def merge_cdxjs(metadata_cdxj, warc_cdxj, cdxj_dir):
     with open(cdxj_path, 'wt') as merged_cdxj, open(metadata_cdxj, 'r') as meta_cdxj, \
          open(warc_cdxj, 'r') as original_cdxj:
 
-        original_dict, duplicate_dict, original_count = create_dict_from_original(original_cdxj)
-        updated_dict, updated_duplicate, matched_count = merge_meta_fields(original_dict,
-                                                                           duplicate_dict,
-                                                                           meta_cdxj)
-
-        for key, value in updated_dict.items():
-            merged_cdxj.write(key + ' ' + json.dumps(value) + '\n')
-        for key, value in updated_duplicate.items():
-            merged_cdxj.write(key + ' ' + json.dumps(value) + '\n')
+        meta_dict, meta_count = create_dict_from_meta(meta_cdxj)
+        list_of_original, edited, non_edited = merge_meta_fields(meta_dict, original_cdxj)
+        for line in list_of_original:
+            merged_cdxj.write(line)
 
         logging.info('Finished creating sidecar in %s',
                      str(timedelta(seconds=(time.time() - start))))
-        print('Total matched records:', matched_count)
-        logging.info('Total matched records: %s', matched_count)
-        print('Total count from', w_cdxj + ':', original_count)  # maybe this is unecessary
+        print('Total edited records:', edited)
+        logging.info('Total edited records: %s', edited)
 
 
 def main():
