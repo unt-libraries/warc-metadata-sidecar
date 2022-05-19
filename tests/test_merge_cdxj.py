@@ -1,6 +1,6 @@
 import io
-# import os
-# from logging import INFO
+import os
+from logging import INFO
 from unittest.mock import MagicMock, patch, call
 
 import merge_cdxj
@@ -16,21 +16,23 @@ MERGED_DICT = {"com,example) 20091111212121": {"url": "http://www.example.com",
                                                "languages": "eng",
                                                "soft-404-detected": 0.08195022044249829}}
 
-META_DICT = {'com,example) 20091111212121': {"Identified-Payload-Type": {"fido": "text/html",
-                                                                         "python-magic": "text/html"},
-                                             "Preservation-Identifier": "fmt/96",
-                                             "Charset-Detected": {"encoding": "ascii",
-                                                                  "confidence": 1.0},
-                                             "Languages-cld2": {"reliable": True,
-                                                                "text-bytes": 4272,
-                                                                "languages": [{"name": "ENGLISH",
-                                                                               "code": "en",
-                                                                               "text-covered": 99,
-                                                                               "score": 971.0}]},
-                                             "Soft-404-Detected": 0.08195022044249829}}
+META_DICT = {'com,example) 20091111212121':
+             {"Identified-Payload-Type": {"fido": "text/html",
+                                          "python-magic": "text/html"},
+              "Preservation-Identifier": "fmt/96",
+              "Charset-Detected": {"encoding": "ascii",
+                                   "confidence": 1.0},
+              "Languages-cld2": {"reliable": True,
+                                 "text-bytes": 4272,
+                                 "languages": [{"name": "ENGLISH",
+                                                "code": "en",
+                                                "text-covered": 99,
+                                                "score": 971.0}]},
+              "Soft-404-Detected": 0.08195022044249829}}
 
-MERGED_LIST = ['com,example) 20091111212121 {"url": "http://www.example.com", "mime": "text/html", '
-               '"mime-detected": "text/html", "charset": "ascii", "languages": "eng", '
+MERGED_LIST = ['com,example) 20091111212121 {"url": "http://www.example.com", '
+               '"mime": "text/html", "mime-detected": "text/html", '
+               '"charset": "ascii", "languages": "eng", '
                '"soft-404-detected": 0.08195022044249829}\n']
 
 META_FILE = io.StringIO('com,example) 20091111212121 {"Identified-Payload-Type": \
@@ -66,7 +68,7 @@ def test_get_sidecar_fields():
 
 def test_merge_meta_fields():
     cdxj = io.StringIO('com,example) 20091111212121 {"url": "http://www.example.com", \
-                                                     "mime": "text/html"}\n' , newline='\n')
+                                                     "mime": "text/html"}\n', newline='\n')
     original, edited, non_edited = merge_cdxj.merge_meta_fields(META_DICT, cdxj)
     assert original == MERGED_LIST
     assert not non_edited
@@ -74,18 +76,24 @@ def test_merge_meta_fields():
 
 
 def test_create_dict_from_meta():
-    actual_dict, count = merge_cdxj.create_dict_from_meta(META_FILE)
+    actual_dict = merge_cdxj.create_dict_from_meta(META_FILE)
     assert actual_dict == META_DICT
-    assert count == 1
+
+
+def test_create_cdxj_path(tmpdir):
+    cdxj_path = merge_cdxj.create_cdxj_path('home/file.cdxj', str(tmpdir))
+    expected_path = os.path.join(tmpdir / 'file_merged.cdxj')
+    assert cdxj_path == expected_path
 
 
 class Test_Merge_Cdxj:
     @patch('merge_cdxj.create_dict_from_meta')
     @patch('merge_cdxj.merge_meta_fields')
     @patch('builtins.open', spec=open)
-    def test_merge_cdxj2(self, mock_open, m_merge_meta, m_create_dict, tmpdir):
+    def test_merge_cdxj2(self, mock_open, m_merge_meta, m_create_dict, caplog, tmpdir):
+        caplog.set_level(INFO)
         merged_file = io.StringIO()
-        m_create_dict.return_value = META_DICT, 1
+        m_create_dict.return_value = META_DICT
         m_merge_meta.return_value = MERGED_LIST, 1, 0
         handle1 = MagicMock()
         handle1.__enter__.return_value = merged_file
@@ -98,10 +106,11 @@ class Test_Merge_Cdxj:
         handle3.__exit__.return_value = False
         mock_open.side_effect = (handle1, handle2, handle3)
         merge_cdxj.merge_cdxjs('meta.cdxj', 'original.cdxj', tmpdir)
+        assert 'Logging CDXJ merge information for original.cdxj and meta.cdxj' in caplog.text
+        assert 'Total edited records: %s', 1 in caplog.text
         m_create_dict.assert_called_once_with(META_FILE)
         m_merge_meta.assert_called_once_with(META_DICT, CDXJ)
         calls = [call(tmpdir/'original_merged.cdxj', 'wt'),
                  call('meta.cdxj', 'r'),
                  call('original.cdxj', 'r')]
         mock_open.assert_has_calls(calls)
-        # add logging assert
