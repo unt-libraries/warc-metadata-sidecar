@@ -72,15 +72,21 @@ def merge_meta_fields(meta_dict, original_cdxj):
 
 def create_dict_from_meta(meta_cdxj):
     """Convert the URL/timestamp and JSON object into a dictionary for easy look up."""
-    meta_count = 0
     meta_dict = {}
     for line in meta_cdxj:
-        meta_count += 1
         m_key, timestamp, meta_obj = line.split(' ', 2)
         key_and_timestamp = m_key + ' ' + timestamp
         json_obj = json.loads(meta_obj)
         meta_dict[key_and_timestamp] = json_obj
-    return (meta_dict, meta_count)
+    return meta_dict
+
+
+def create_cdxj_path(warc_cdxj, cdxj_dir):
+    """Take the WARC CDXJ, replace the extension, and return the path/filename of the CDXJ."""
+    w_cdxj = os.path.basename(warc_cdxj)
+    cdxj_file = re.sub(r'\.cdxj$', '_merged.cdxj', w_cdxj)  # What to name it, merge_sidecar_cdxj?
+    logging.info('Creating CDXJ %s', cdxj_file)
+    return os.path.join(cdxj_dir, cdxj_file)
 
 
 def merge_cdxjs(metadata_cdxj, warc_cdxj, cdxj_dir):
@@ -103,16 +109,12 @@ def merge_cdxjs(metadata_cdxj, warc_cdxj, cdxj_dir):
     logging.getLogger(__name__)
     logging.info('Logging CDXJ merge information for %s and %s', warc_cdxj, metadata_cdxj)
 
-    w_cdxj = os.path.basename(warc_cdxj)
-    # Not sure what to do here, what shall we name the merged file... merge_sidecar_cdxj?
-    cdxj_file = re.sub(r'\.cdxj$', '_merged.cdxj', w_cdxj)
-    logging.info('Creating CDXJ %s', cdxj_file)
-    cdxj_path = os.path.join(cdxj_dir, cdxj_file)
+    cdxj_path = create_cdxj_path(warc_cdxj, cdxj_dir)
 
     with open(cdxj_path, 'wt') as merged_cdxj, open(metadata_cdxj, 'r') as meta_cdxj, \
          open(warc_cdxj, 'r') as original_cdxj:
 
-        meta_dict, meta_count = create_dict_from_meta(meta_cdxj)
+        meta_dict = create_dict_from_meta(meta_cdxj)
         list_of_original, edited, non_edited = merge_meta_fields(meta_dict, original_cdxj)
         for line in list_of_original:
             merged_cdxj.write(line)
