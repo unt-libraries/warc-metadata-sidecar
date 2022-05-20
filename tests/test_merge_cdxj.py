@@ -53,26 +53,57 @@ def test_get_alpha3_language_codes():
 
 
 def test_not_alpha3_language_code():
-    unknown_lang = [{'name': 'X_Nko', 'code': 'xx-Nkoo', 'text-covered': 10, 'score': 1024.0}]
+    unknown_lang = [{'name': 'ENGLISH', 'code': 'en', 'text-covered': 46, 'score': 527.0},
+                    {'name': 'X_Nko', 'code': 'xx-Nkoo', 'text-covered': 10, 'score': 1024.0}]
     lang_codes = merge_cdxj.get_alpha3_language_codes(unknown_lang)
-    assert lang_codes == ''
+    assert lang_codes == 'eng'
 
 
-def test_get_sidecar_fields():
+@patch('merge_cdxj.get_alpha3_language_codes')
+def test_get_sidecar_fields(m_lang):
     original_obj = {'mime': 'text/html'}
     meta_obj = {"Identified-Payload-Type": {"fido": "image/gif", "python-magic": "image/gif"},
                 "Preservation-Identifier": "fmt/4"}
     actual = merge_cdxj.get_sidecar_fields(original_obj, meta_obj)
     assert actual == {'mime': 'text/html', 'mime-detected': 'image/gif'}
+    m_lang.assert_not_called()
 
 
-def test_merge_meta_fields():
+@patch('merge_cdxj.get_alpha3_language_codes')
+def test_merge_meta_fields(m_lang):
+    m_lang.return_value = 'eng'
+    lang_array = [{"name": "ENGLISH", "code": "en", "text-covered": 99, "score": 971.0}]
     cdxj = io.StringIO('com,example) 20091111212121 {"url": "http://www.example.com", \
                                                      "mime": "text/html"}\n', newline='\n')
     original, edited, non_edited = merge_cdxj.merge_meta_fields(META_DICT, cdxj)
     assert original == MERGED_LIST
     assert not non_edited
     assert edited == 1
+    m_lang.assert_called_once_with(lang_array)
+
+
+@patch('merge_cdxj.get_sidecar_fields')
+def test_merge_meta_fields_non_edited(m_fields):
+    m_fields.return_value = {"url": "http://www.example.com",
+                             "mime": "text/html",
+                             "mime-detected": "text/html",
+                             "charset": "ascii",
+                             "languages": "eng",
+                             "soft-404-detected": 0.08195022044249829}
+    cdxj = io.StringIO('com,example) 20091111212121 {"url": "http://www.example.com", \
+                                                     "mime": "text/html"}\n'
+                       'com,abc) 20091111212131 {"url": "http://www.abc.com", '
+                       '"mime": "text/xml"}\n', newline='\n')
+    merged_list = ['com,example) 20091111212121 {"url": "http://www.example.com", '
+                   '"mime": "text/html", "mime-detected": "text/html", '
+                   '"charset": "ascii", "languages": "eng", '
+                   '"soft-404-detected": 0.08195022044249829}\n',
+                   'com,abc) 20091111212131 {"url": "http://www.abc.com", "mime": "text/xml"}\n']
+    original, edited, non_edited = merge_cdxj.merge_meta_fields(META_DICT, cdxj)
+    assert original == merged_list
+    assert non_edited == 1
+    assert edited == 1
+    m_fields.assert_called_once()
 
 
 def test_create_dict_from_meta():
