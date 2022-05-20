@@ -12,8 +12,8 @@ from langcodes import Language
 def get_alpha3_language_codes(lang_list):
     """Find each language code and convert it to alpha3 using langcodes."""
     code = []
-    new_code = ''
     for dict in lang_list:
+        new_code = ''
         lang_code = dict['code']
         try:
             new_code = Language.get(lang_code).to_alpha3()
@@ -30,7 +30,7 @@ def get_alpha3_language_codes(lang_list):
 def get_sidecar_fields(original_obj, meta_obj):
     """Collect the mime, charset, languages, and soft404 to add them to the original WARC dict."""
     if meta_obj.get('Identified-Payload-Type'):
-        # Choosing python-magic over fido, due to broader choices
+        # Choosing python-magic over fido, due to broader choices.
         if meta_obj['Identified-Payload-Type'].get('python-magic'):
             mime = meta_obj['Identified-Payload-Type']['python-magic']
         else:
