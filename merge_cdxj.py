@@ -84,7 +84,7 @@ def create_dict_from_meta(meta_cdxj):
 def create_cdxj_path(warc_cdxj, cdxj_dir):
     """Take the WARC CDXJ, replace the extension, and return the path/filename of the CDXJ."""
     w_cdxj = os.path.basename(warc_cdxj)
-    cdxj_file = re.sub(r'\.cdxj$', '_merged.cdxj', w_cdxj)  # What to name it, merge_sidecar_cdxj?
+    cdxj_file = re.sub(r'\.cdxj$', '_merged.cdxj', w_cdxj)
     logging.info('Creating CDXJ %s', cdxj_file)
     return os.path.join(cdxj_dir, cdxj_file)
 
@@ -119,10 +119,10 @@ def merge_cdxjs(metadata_cdxj, warc_cdxj, cdxj_dir):
         for line in list_of_original:
             merged_cdxj.write(line)
 
-        logging.info('Finished creating sidecar in %s',
+        logging.info('Finished merging in %s',
                      str(timedelta(seconds=(time.time() - start))))
-        print('Total edited records:', edited)
-        logging.info('Total edited records: %s', edited)
+        print('Total merged records:', edited)
+        logging.info('Total merged records: %s', edited)
 
 
 def main():
