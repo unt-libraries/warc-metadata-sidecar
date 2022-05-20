@@ -9,26 +9,26 @@ import merge_cdxj
 CDXJ = io.StringIO('com,example) 20091111212121 \
                    {"url": "http://www.example.com", "mime": "text/html"}')
 
-MERGED_DICT = {"com,example) 20091111212121": {"url": "http://www.example.com",
-                                               "mime": "text/html",
-                                               "mime-detected": "text/html",
-                                               "charset": "ascii",
-                                               "languages": "eng",
-                                               "soft-404-detected": 0.08195022044249829}}
+MERGED_DICT = {'com,example) 20091111212121': {'url': 'http://www.example.com',
+                                               'mime': 'text/html',
+                                               'mime-detected': 'text/html',
+                                               'charset': 'ascii',
+                                               'languages': 'eng',
+                                               'soft-404-detected': 0.08195022044249829}}
 
 META_DICT = {'com,example) 20091111212121':
-             {"Identified-Payload-Type": {"fido": "text/html",
-                                          "python-magic": "text/html"},
-              "Preservation-Identifier": "fmt/96",
-              "Charset-Detected": {"encoding": "ascii",
-                                   "confidence": 1.0},
-              "Languages-cld2": {"reliable": True,
-                                 "text-bytes": 4272,
-                                 "languages": [{"name": "ENGLISH",
-                                                "code": "en",
-                                                "text-covered": 99,
-                                                "score": 971.0}]},
-              "Soft-404-Detected": 0.08195022044249829}}
+             {'Identified-Payload-Type': {'fido': 'text/html',
+                                          'python-magic': 'text/html'},
+              'Preservation-Identifier': 'fmt/96',
+              'Charset-Detected': {'encoding': 'ascii',
+                                   'confidence': 1.0},
+              'Languages-cld2': {'reliable': True,
+                                 'text-bytes': 4272,
+                                 'languages': [{'name': 'ENGLISH',
+                                                'code': 'en',
+                                                'text-covered': 99,
+                                                'score': 971.0}]},
+              'Soft-404-Detected': 0.08195022044249829}}
 
 MERGED_LIST = ['com,example) 20091111212121 {"url": "http://www.example.com", '
                '"mime": "text/html", "mime-detected": "text/html", '
@@ -62,8 +62,8 @@ def test_not_alpha3_language_code():
 @patch('merge_cdxj.get_alpha3_language_codes')
 def test_get_sidecar_fields(m_lang):
     original_obj = {'mime': 'text/html'}
-    meta_obj = {"Identified-Payload-Type": {"fido": "image/gif", "python-magic": "image/gif"},
-                "Preservation-Identifier": "fmt/4"}
+    meta_obj = {'Identified-Payload-Type': {'fido': 'image/gif', 'python-magic': 'image/gif'},
+                'Preservation-Identifier': 'fmt/4'}
     actual = merge_cdxj.get_sidecar_fields(original_obj, meta_obj)
     assert actual == {'mime': 'text/html', 'mime-detected': 'image/gif'}
     m_lang.assert_not_called()
@@ -72,7 +72,7 @@ def test_get_sidecar_fields(m_lang):
 @patch('merge_cdxj.get_alpha3_language_codes')
 def test_merge_meta_fields(m_lang):
     m_lang.return_value = 'eng'
-    lang_array = [{"name": "ENGLISH", "code": "en", "text-covered": 99, "score": 971.0}]
+    lang_array = [{'name': 'ENGLISH', 'code': 'en', 'text-covered': 99, 'score': 971.0}]
     cdxj = io.StringIO('com,example) 20091111212121 {"url": "http://www.example.com", \
                                                      "mime": "text/html"}\n', newline='\n')
     original, edited, non_edited = merge_cdxj.merge_meta_fields(META_DICT, cdxj)
@@ -84,12 +84,12 @@ def test_merge_meta_fields(m_lang):
 
 @patch('merge_cdxj.get_sidecar_fields')
 def test_merge_meta_fields_non_edited(m_fields):
-    m_fields.return_value = {"url": "http://www.example.com",
-                             "mime": "text/html",
-                             "mime-detected": "text/html",
-                             "charset": "ascii",
-                             "languages": "eng",
-                             "soft-404-detected": 0.08195022044249829}
+    m_fields.return_value = {'url': 'http://www.example.com',
+                             'mime': 'text/html',
+                             'mime-detected': 'text/html',
+                             'charset': 'ascii',
+                             'languages': 'eng',
+                             'soft-404-detected': 0.08195022044249829}
     cdxj = io.StringIO('com,example) 20091111212121 {"url": "http://www.example.com", \
                                                      "mime": "text/html"}\n'
                        'com,abc) 20091111212131 {"url": "http://www.abc.com", '
