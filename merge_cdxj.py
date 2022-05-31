@@ -11,19 +11,19 @@ from langcodes import Language
 
 def get_alpha3_language_codes(lang_list):
     """Find each language code and convert it to alpha3 using langcodes."""
-    code = []
-    for dict in lang_list:
-        new_code = ''
-        lang_code = dict['code']
+    codes = []
+    for lang_dict in lang_list:
+        lang_code = lang_dict['code']
         try:
             new_code = Language.get(lang_code).to_alpha3()
         except LookupError as err:
+            new_code = ''
             logging.error(err)
         # We only want to include the language if it has a 3 letter code.
         if len(new_code) == 3:
-            code.append(new_code)
+            codes.append(new_code)
     # The codes need to be comma separated values.
-    lang_codes = ','.join(code)
+    lang_codes = ','.join(codes)
     return lang_codes
 
 
@@ -54,20 +54,26 @@ def merge_meta_fields(meta_dict, original_cdxj):
     """Find the matching keys, merge the JSON objects, then update the line for the new CDXJ."""
     edited_count = 0
     non_edited_count = 0
-    list_of_original = []
+    list_of_merged = []
+    # There could be times that the original cdxj has more than one of the same 'key'.
+    # We will match each line by looping.
     for line in original_cdxj:
         urlkey, timestamp, cdxj_obj = line.split(' ', 2)
+        # Set the key for matching.
         urlkey_and_timestamp = urlkey + ' ' + timestamp
+        # If the original key is a match with a meta cdxj key, then merge the field objects.
+        # This includes merging fields to any duplicate keys from original cdxj.
         if meta_dict.get(urlkey_and_timestamp):
             edited_count += 1
             meta_obj = meta_dict[urlkey_and_timestamp]
             original_obj = json.loads(cdxj_obj)
             updated_obj = get_sidecar_fields(original_obj, meta_obj)
-            list_of_original.append(urlkey_and_timestamp + ' ' + json.dumps(updated_obj) + '\n')
+            list_of_merged.append(urlkey_and_timestamp + ' ' + json.dumps(updated_obj) + '\n')
+        # If it does not match, we still want the original.
         else:
             non_edited_count += 1
-            list_of_original.append(line)
-    return (list_of_original, edited_count, non_edited_count)
+            list_of_merged.append(line)
+    return (list_of_merged, edited_count, non_edited_count)
 
 
 def create_dict_from_meta(meta_cdxj):
