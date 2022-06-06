@@ -127,8 +127,8 @@ def merge_cdxjs(metadata_cdxj, warc_cdxj, cdxj_dir):
 
         logging.info('Finished merging in %s',
                      str(timedelta(seconds=(time.time() - start))))
-        print('Merged {} + {} => {}'.format(warc_cdxj, metadata_cdxj, cdxj_path))
-        print('Total merged records:', edited)
+        print('Merged {} + {} => {}\tTotal merged records: {}'.format(warc_cdxj, metadata_cdxj,
+                                                                      cdxj_path, edited))
         logging.info('Total merged records: %s', edited)
 
 
