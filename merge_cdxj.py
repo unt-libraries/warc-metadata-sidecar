@@ -134,18 +134,24 @@ def merge_cdxjs(metadata_cdxj, warc_cdxj, cdxj_dir):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        'metadata_cdxj',
+        '-m',
+        '--metadata_cdxj',
         action='store',
+        required=True,
         help='A CDXJ file created from a metadata sidecar WARC file.'
     )
     parser.add_argument(
-        'warc_cdxj',
+        '-w',
+        '--warc_cdxj',
         action='store',
+        required=True,
         help='A CDXJ file with data from a WARC file.'
     )
     parser.add_argument(
-        'cdxj_dir',
+        '-d',
+        '--cdxj_dir',
         action='store',
+        required=True,
         help='A directory where the merged CDXJ file will be stored.'
     )
     args = parser.parse_args()
