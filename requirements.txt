@@ -6,3 +6,4 @@ python-magic==0.4.25
 regex==2022.1.18
 soft-404==0.4.0
 surt==0.3.1
+langcodes==3.3.0

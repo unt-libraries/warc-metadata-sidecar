@@ -2,8 +2,8 @@
 
 [![Build Status](https://github.com/unt-libraries/warc-metadata-sidecar/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/unt-libraries/warc-metadata-sidecar/actions)
 
-This library is intended to extract data into a metadata sidecar from WARC/ARC files and convert the
-sidecar data into a CDXJ file.
+This library is intended to extract data into a metadata sidecar from WARC/ARC files, convert the
+sidecar data into a CDXJ file, and then merge that CDXJ with a CDXJ created from the original WARC.
 
 ## Installation
 
@@ -44,6 +44,22 @@ For usage instructions run:
 Example:
 
     $ sidecar2cdxj.py sidecar_filename.warc.meta.gz directory_name
+
+## merge_cdxj.py
+
+This script will take a CDXJ from an original WARC and a metadata sidecar CDXJ, find the matching URI and
+timestamp from each file, collect certain fields from the metadata sidecar CDXJ (mime type,
+charset, language, and soft-404), merge those fields with the original CDXJ data, and put the
+merged data into a new CDXJ.
+
+For usage instructions run:
+
+    $ merge_cdxj.py --help
+
+Example:
+
+    $ merge_cdxj.py sidecar.cdxj original.cdxj directory_name
+
 ## Testing
 
     $ pip install pytest
