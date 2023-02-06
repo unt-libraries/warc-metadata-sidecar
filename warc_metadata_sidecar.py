@@ -7,7 +7,6 @@ import io
 import json
 import logging
 import os
-import pkg_resources
 import re
 import regex
 import socket
