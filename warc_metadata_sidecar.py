@@ -174,14 +174,14 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
     new_file = os.path.basename(warc_file)
     meta_file = re.sub(r'w?arc(\.gz)?$', 'warc.meta.gz', new_file)
     logging.info('Creating sidecar %s', meta_file)
-    warc_file_path = os.path.join(archive_dir, meta_file)
+    meta_file_path = os.path.join(archive_dir, meta_file)
     # Determine the type of file we are processing, WARC or ARC.
     warc = True
     if ARC.match(new_file):
         warc = False
 
     # Open the sidecar file to write in the metadata, open the warc file to get each record.
-    with open(warc_file_path, 'ab') as output, open(warc_file, 'rb') as stream:
+    with open(meta_file_path, 'ab') as output, open(warc_file, 'rb') as stream:
         record_count = 0
         total_records = 0
         text_mime = 0
@@ -249,7 +249,7 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
             writer.write_record(meta_record)
         # Delete sidecar file if we do not collect any records.
         if not record_count:
-            os.remove(warc_file_path)
+            os.remove(meta_file_path)
             logging.info('Deleted sidecar, no records to collect.')
         else:
             logging.info('Finished creating sidecar in %s',
