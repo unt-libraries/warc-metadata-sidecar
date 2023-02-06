@@ -216,7 +216,7 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
             else:
                 warc_dict = {'WARC-Date': record_date}
 
-            print(url)
+            logging.info(url)
             payload.seek(0)
             mime_dict, puid = find_mime_and_puid(fido, payload)
             mimes_found = ' '.join(mime_dict.values())
