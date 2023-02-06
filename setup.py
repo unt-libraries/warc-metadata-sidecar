@@ -7,10 +7,13 @@ with open('README.md', 'r') as readme_f:
 with open('requirements.txt', 'r') as f:
     dependencies = f.read().split()
 
+with open('warc_metadata_sidecar.py', 'r') as fd:
+    version = re.search(r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]',
+                        fd.read(), re.MULTILINE).group(1)
 
 setup(
     name='warc-metadata-sidecar',
-    version='1.0',
+    version=version,
     url='https://github.com/unt-libraries/warc-metadata-sidecar/',
     author='University of North Texas Libraries',
     author_email='gracie.flores@unt.edu',

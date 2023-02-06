@@ -1,4 +1,7 @@
 #!/usr/bin/python
+
+__version__ = '1.0'
+
 import argparse
 import io
 import json
@@ -125,7 +128,7 @@ def determine_soft404(bytes_payload):
 def create_warcinfo_payload(new_file, operator=None, publisher=None):
     """Collect WARC fields to create warcinfo record payload."""
     hostname = socket.gethostname()
-    version = pkg_resources.require('warc-metadata-sidecar')[0].version
+    version = __version__
     warc_doc = 'http://bibnum.bnf.fr/WARC/WARC_ISO_28500_version1_latestdraft.pdf'
     warcinfo_payload = {'software': 'warc-metadata-sidecar/' + version,
                         'hostname': hostname,
