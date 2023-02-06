@@ -264,14 +264,14 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
+        'archive_dir',
+        action='store',
+        help='A directory where the sidecar and log will be stored.'
+    )
+    parser.add_argument(
         'warc_file',
         action='store',
         help='A WARC file that will be used to generate a sidecar with metadata.'
-    )
-    parser.add_argument(
-        'archive_dir',
-        action='store',
-        help='A directory where the sidecar and log will be stored.',
     )
     parser.add_argument(
         '--operator',
