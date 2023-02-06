@@ -30,7 +30,7 @@ Example:
 
     $ warc_metadata_sidecar.py warc_filename.warc.gz example_dirname
 
-    $ warc_metadata_sidecar.py file.warc.gz dir_name --operator 'Operator Name' --publisher 'Name'
+    $ warc_metadata_sidecar.py dir_name file.warc.gz --operator 'Operator Name' --publisher 'Name'
 
 ## sidecar2cdxj.py
 
