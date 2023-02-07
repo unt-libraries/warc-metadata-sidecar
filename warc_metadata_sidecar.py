@@ -127,9 +127,8 @@ def determine_soft404(bytes_payload):
 def create_warcinfo_payload(new_file, operator=None, publisher=None):
     """Collect WARC fields to create warcinfo record payload."""
     hostname = socket.gethostname()
-    version = __version__
     warc_doc = 'http://bibnum.bnf.fr/WARC/WARC_ISO_28500_version1_latestdraft.pdf'
-    warcinfo_payload = {'software': 'warc-metadata-sidecar/' + version,
+    warcinfo_payload = {'software': 'warc-metadata-sidecar/' + __version__,
                         'hostname': hostname,
                         'ip': socket.gethostbyname(hostname),
                         'conformsTo': warc_doc,
