@@ -1,10 +1,12 @@
 #!/usr/bin/python
+
+__version__ = '1.0'
+
 import argparse
 import io
 import json
 import logging
 import os
-import pkg_resources
 import re
 import regex
 import socket
@@ -125,9 +127,8 @@ def determine_soft404(bytes_payload):
 def create_warcinfo_payload(new_file, operator=None, publisher=None):
     """Collect WARC fields to create warcinfo record payload."""
     hostname = socket.gethostname()
-    version = pkg_resources.require('warc-metadata-sidecar')[0].version
     warc_doc = 'http://bibnum.bnf.fr/WARC/WARC_ISO_28500_version1_latestdraft.pdf'
-    warcinfo_payload = {'software': 'warc-metadata-sidecar/' + version,
+    warcinfo_payload = {'software': 'warc-metadata-sidecar/' + __version__,
                         'hostname': hostname,
                         'ip': socket.gethostbyname(hostname),
                         'conformsTo': warc_doc,
@@ -174,14 +175,14 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
     new_file = os.path.basename(warc_file)
     meta_file = re.sub(r'w?arc(\.gz)?$', 'warc.meta.gz', new_file)
     logging.info('Creating sidecar %s', meta_file)
-    warc_file_path = os.path.join(archive_dir, meta_file)
+    meta_file_path = os.path.join(archive_dir, meta_file)
     # Determine the type of file we are processing, WARC or ARC.
     warc = True
     if ARC.match(new_file):
         warc = False
 
     # Open the sidecar file to write in the metadata, open the warc file to get each record.
-    with open(warc_file_path, 'ab') as output, open(warc_file, 'rb') as stream:
+    with open(meta_file_path, 'ab') as output, open(warc_file, 'rb') as stream:
         record_count = 0
         total_records = 0
         text_mime = 0
@@ -216,7 +217,7 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
             else:
                 warc_dict = {'WARC-Date': record_date}
 
-            print(url)
+            logging.info(url)
             payload.seek(0)
             mime_dict, puid = find_mime_and_puid(fido, payload)
             mimes_found = ' '.join(mime_dict.values())
@@ -249,7 +250,7 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
             writer.write_record(meta_record)
         # Delete sidecar file if we do not collect any records.
         if not record_count:
-            os.remove(warc_file_path)
+            os.remove(meta_file_path)
             logging.info('Deleted sidecar, no records to collect.')
         else:
             logging.info('Finished creating sidecar in %s',
@@ -264,14 +265,14 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
+        'archive_dir',
+        action='store',
+        help='A directory where the sidecar and log will be stored.'
+    )
+    parser.add_argument(
         'warc_file',
         action='store',
         help='A WARC file that will be used to generate a sidecar with metadata.'
-    )
-    parser.add_argument(
-        'archive_dir',
-        action='store',
-        help='A directory where the sidecar and log will be stored.',
     )
     parser.add_argument(
         '--operator',
