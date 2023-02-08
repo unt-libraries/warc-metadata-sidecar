@@ -59,8 +59,8 @@ def test_find_mime_and_puid():
 
 def test_find_character_set():
     RECORD1['payload'].seek(0)
-    decoded_payload = RECORD1['payload'].read()
-    result_dict = sidecar.find_character_set(decoded_payload)
+    payload = RECORD1['payload']
+    result_dict = sidecar.find_character_set(payload)
     assert result_dict == {'encoding': 'ascii', 'confidence': 1.0}
 
 
