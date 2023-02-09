@@ -13,10 +13,10 @@ import socket
 import time
 from datetime import timedelta
 
-import chardet
 import magic
 import pycld2 as cld2
 import soft404
+from chardet.universaldetector import UniversalDetector
 from fido.fido import Fido
 from warcio.archiveiterator import ArchiveIterator
 from warcio.warcwriter import WARCWriter
@@ -86,11 +86,16 @@ def find_mime_and_puid(fido, payload):
     return (mime_dict, puid)
 
 
-def find_character_set(bytes_payload):
+def find_character_set(payload):
     """Find the character set of the payload using chardet."""
-    result = chardet.detect(bytes_payload)
-    result_dict = {'encoding': result['encoding'],
-                   'confidence': result['confidence']
+    detector = UniversalDetector()
+    for line in payload.readlines():
+        detector.feed(line)
+        if detector.done:
+            break
+    detector.close()
+    result_dict = {'encoding': detector.result['encoding'],
+                   'confidence': detector.result['confidence']
                    }
     return result_dict
 
@@ -227,8 +232,9 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
             # If these text formats are in the mime type(s), find the encoding and language.
             if TEXT_FORMAT_MIMES.search(mimes_found):
                 payload.seek(0)
+                result_dict = find_character_set(payload)
+                payload.seek(0)
                 bytes_payload = payload.read()
-                result_dict = find_character_set(bytes_payload)
                 lang_cld = find_language(bytes_payload)
                 text_mime += 1
                 # Determine the soft404 probability on html records.
