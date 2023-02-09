@@ -91,7 +91,8 @@ def find_character_set(payload):
     detector = UniversalDetector()
     for line in payload.readlines():
         detector.feed(line)
-        if detector.done: break
+        if detector.done:
+            break
     detector.close()
     result_dict = {'encoding': detector.result['encoding'],
                    'confidence': detector.result['confidence']
