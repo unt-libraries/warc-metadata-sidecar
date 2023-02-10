@@ -193,6 +193,8 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
         text_mime = 0
         non_text = 0
         fido = ExtendFido()
+        digest_cache = {}
+        warc_digest = ''
 
         writer = WARCWriter(output, gzip=True)
         warc_info = create_warcinfo_payload(new_file, operator, publisher)
@@ -214,6 +216,8 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
             # Define specific warc_headers to include in sidecar.
             record_date = record.rec_headers.get_header('WARC-Date')
             if warc:
+                # This digest hash is not included in the sidecar.
+                warc_digest = record.rec_headers.get_header('WARC-Payload-Digest')
                 warcinfo_id = record.rec_headers.get_header('WARC-Warcinfo-ID')
                 warcrecord_id = record.rec_headers.get_header('WARC-Record-ID')
                 warc_dict = {'WARC-Date': record_date, 'WARC-Concurrent-ID': warcrecord_id}
@@ -221,6 +225,17 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
                     warc_dict['WARC-Warcinfo-ID'] = warcinfo_id
             else:
                 warc_dict = {'WARC-Date': record_date}
+
+            if warc_digest and warc_digest in digest_cache:
+                saved_metadata = digest_cache.get(warc_digest)
+                meta_record = writer.create_warc_record(url,
+                                                    'metadata',
+                                                    payload=io.BytesIO(saved_metadata.encode()),
+                                                    warc_headers_dict=warc_dict
+                                                    )
+                writer.write_record(meta_record)
+                record_count += 1
+                continue
 
             logging.info(url)
             payload.seek(0)
@@ -248,6 +263,11 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
             if not string_payload:
                 continue
             record_count += 1
+            
+            # Save the record metadata for each digest hash for possible reuse.
+            if warc_digest and warc_digest not in digest_cache:
+                digest_cache[warc_digest] = string_payload
+
             meta_record = writer.create_warc_record(url,
                                                     'metadata',
                                                     payload=io.BytesIO(string_payload.encode()),
