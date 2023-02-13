@@ -8,7 +8,6 @@ from unittest.mock import patch, call
 import pycld2 as cld2
 from warcio.archiveiterator import ArchiveIterator
 import warc_metadata_sidecar as sidecar
-from warc_metadata_sidecar import DIGEST_CACHE
 
 
 HOSTNAME = socket.gethostname()
@@ -139,7 +138,7 @@ class Test_Warc_Metadata_Sidecar:
         m_find_mime.assert_called_once()
         m_soft404.assert_called_once()
         assert metadata_sidecar_return == (tmpdir / 'text.warc.meta.gz', 1, 1)
-        assert record_digest in DIGEST_CACHE
+        assert record_digest in sidecar.DIGEST_CACHE
 
     @patch('warc_metadata_sidecar.WARCWriter')
     def test_metadata_sidecar_dns_record(self, mock_warcwriter, caplog, tmpdir):

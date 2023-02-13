@@ -230,10 +230,11 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
             if warc_digest and warc_digest in DIGEST_CACHE:
                 saved_metadata = DIGEST_CACHE.get(warc_digest)
                 meta_record = writer.create_warc_record(url,
-                                                    'metadata',
-                                                    payload=io.BytesIO(saved_metadata.encode()),
-                                                    warc_headers_dict=warc_dict
-                                                    )
+                                                        'metadata',
+                                                        payload=io.BytesIO(
+                                                            saved_metadata.encode()),
+                                                        warc_headers_dict=warc_dict
+                                                        )
                 writer.write_record(meta_record)
                 record_count += 1
                 continue
@@ -264,7 +265,7 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
             if not string_payload:
                 continue
             record_count += 1
-            
+
             # Save the record metadata for each digest hash for possible reuse.
             if warc_digest and warc_digest not in DIGEST_CACHE:
                 DIGEST_CACHE[warc_digest] = string_payload
