@@ -19,6 +19,7 @@ DNS_TEST_FILE = os.path.join(TEST_DIR, 'dns.warc')
 IMAGE_TEST_FILE = os.path.join(TEST_DIR, 'gif.warc')
 REVISIT_TEST_FILE = os.path.join(TEST_DIR, 'revisit.warc')
 ARC_TEST_FILE = os.path.join(TEST_DIR, 'text.arc')
+DIGEST_TEST_FILE = os.path.join(TEST_DIR, 'digest_multiples.warc')
 
 RECORD1 = {'url': 'https://www.unt.edu',
            'payload': io.BytesIO(b'<!DOCTYPE html>\n<!--[if IE 8]>\n'
@@ -195,3 +196,37 @@ class Test_Warc_Metadata_Sidecar:
                 if record.rec_type == 'metadata':
                     assert record.rec_headers.get_header('WARC-Concurrent-ID') is None
                     assert record.rec_headers.get_header('WARC-Warcinfo-ID') is None
+
+    @patch('warc_metadata_sidecar.determine_soft404')
+    @patch('warc_metadata_sidecar.find_mime_and_puid')
+    @patch('warc_metadata_sidecar.find_character_set')
+    @patch('warc_metadata_sidecar.find_language')
+    @patch('warc_metadata_sidecar.create_string_payload', return_value='payload')
+    @patch('warc_metadata_sidecar.create_warcinfo_payload')
+    @patch('warc_metadata_sidecar.WARCWriter')
+    def test_digest_multiples_use_cache(self, mock_warcwriter, m_warcinfo, m_create_payload, m_lang,
+                              m_charset, m_find_mime, m_soft404, caplog, tmpdir):
+        # Clear the cache from previous tests
+        sidecar.DIGEST_CACHE = {}
+        # Get record digest from file to test DIGEST_CACHE
+        digest_list = []
+        with open(DIGEST_TEST_FILE, 'rb') as stream:
+            for record in ArchiveIterator(stream):
+                digest = record.rec_headers.get_header('WARC-Payload-Digest')
+                if digest and digest not in digest_list:
+                    digest_list.append(digest)
+        caplog.set_level(INFO)
+        writer = mock_warcwriter.return_value
+        m_find_mime.return_value = ({'python-magic': 'text/plain'}, None)
+        metadata_sidecar_return = sidecar.metadata_sidecar(str(tmpdir), DIGEST_TEST_FILE)
+        assert m_warcinfo.call_count == 1
+        assert m_create_payload.call_count == 2
+        assert m_lang.call_count == 2
+        assert m_charset.call_count == 2
+        assert m_find_mime.call_count == 2
+        assert m_soft404.call_count == 0
+        assert 'Determined sidecar information for 4 response/resource record(s)' in caplog.text
+        assert writer.write_record.call_count == 5
+        assert metadata_sidecar_return == (tmpdir / 'digest_multiples.warc.meta.gz', 5, 4)
+        for digest in digest_list:
+            assert digest in sidecar.DIGEST_CACHE
