@@ -204,8 +204,9 @@ class Test_Warc_Metadata_Sidecar:
     @patch('warc_metadata_sidecar.create_string_payload', return_value='payload')
     @patch('warc_metadata_sidecar.create_warcinfo_payload')
     @patch('warc_metadata_sidecar.WARCWriter')
-    def test_digest_multiples_use_cache(self, mock_warcwriter, m_warcinfo, m_create_payload, m_lang,
-                              m_charset, m_find_mime, m_soft404, caplog, tmpdir):
+    def test_digest_multiples_use_cache(self, mock_warcwriter, m_warcinfo, m_create_payload,
+                                        m_lang, m_charset, m_find_mime, m_soft404, caplog,
+                                        tmpdir):
         # Clear the cache from previous tests
         sidecar.DIGEST_CACHE = {}
         # Get record digest from file to test DIGEST_CACHE

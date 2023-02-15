@@ -190,10 +190,10 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
 
     # Open the sidecar file to write in the metadata, open the warc file to get each record.
     with open(meta_file_path, 'ab') as output, open(warc_file, 'rb') as stream:
-        records_written = 0 # The number of records with metadata.
-        total_records_read = 0 # The total number of records within the WARC file.
-        text_mime = 0 # The number of records with 'text' type mimetypes.
-        non_text = 0 # The number of records with other types of mimetypes (ex: img or gif).
+        records_written = 0  # The number of records with metadata.
+        total_records_read = 0  # The total number of records within the WARC file.
+        text_mime = 0  # The number of records with 'text' type mimetypes.
+        non_text = 0  # The number of records with other types of mimetypes (ex: img or gif).
         fido = ExtendFido()
 
         writer = WARCWriter(output, gzip=True)
@@ -234,7 +234,7 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
                 if TEXT_FORMAT_MIMES.search(metadata_list[0]):
                     text_mime += 1
                 else:
-                    non_text +=1
+                    non_text += 1
                 meta_record = writer.create_warc_record(url,
                                                         'metadata',
                                                         payload=io.BytesIO(
