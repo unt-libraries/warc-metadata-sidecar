@@ -190,12 +190,11 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
 
     # Open the sidecar file to write in the metadata, open the warc file to get each record.
     with open(meta_file_path, 'ab') as output, open(warc_file, 'rb') as stream:
-        record_count = 0
-        total_records = 0
-        text_mime = 0
-        non_text = 0
+        records_written = 0 # The number of records with metadata.
+        total_records_read = 0 # The total number of records within the WARC file.
+        text_mime = 0 # The number of records with 'text' type mimetypes.
+        non_text = 0 # The number of records with other types of mimetypes (ex: img or gif).
         fido = ExtendFido()
-        warc_digest = ''
 
         writer = WARCWriter(output, gzip=True)
         warc_info = create_warcinfo_payload(new_file, operator, publisher)
@@ -204,7 +203,7 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
         writer.write_record(warcinfo_record)
 
         for record in ArchiveIterator(stream, arc2warc=True):
-            total_records += 1
+            total_records_read += 1
             if record.rec_type not in ['response', 'resource']:
                 continue
             url = record.rec_headers.get_header('WARC-Target-URI')
@@ -226,9 +225,16 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
                     warc_dict['WARC-Warcinfo-ID'] = warcinfo_id
             else:
                 warc_dict = {'WARC-Date': record_date}
+                warc_digest = None
 
+            logging.info(url)
             if warc_digest and warc_digest in DIGEST_CACHE:
                 saved_metadata = DIGEST_CACHE.get(warc_digest)
+                metadata_list = saved_metadata.split('\n')
+                if TEXT_FORMAT_MIMES.search(metadata_list[0]):
+                    text_mime += 1
+                else:
+                    non_text +=1
                 meta_record = writer.create_warc_record(url,
                                                         'metadata',
                                                         payload=io.BytesIO(
@@ -236,10 +242,9 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
                                                         warc_headers_dict=warc_dict
                                                         )
                 writer.write_record(meta_record)
-                record_count += 1
+                records_written += 1
                 continue
 
-            logging.info(url)
             payload.seek(0)
             mime_dict, puid = find_mime_and_puid(fido, payload)
             mimes_found = ' '.join(mime_dict.values())
@@ -264,10 +269,10 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
                                                    lang_cld, soft404_detected)
             if not string_payload:
                 continue
-            record_count += 1
+            records_written += 1
 
             # Save the record metadata for each digest hash for possible reuse.
-            if warc_digest and warc_digest not in DIGEST_CACHE:
+            if warc_digest:
                 DIGEST_CACHE[warc_digest] = string_payload
 
             meta_record = writer.create_warc_record(url,
@@ -277,19 +282,19 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
                                                     )
             writer.write_record(meta_record)
         # Delete sidecar file if we do not collect any records.
-        if not record_count:
+        if not records_written:
             os.remove(meta_file_path)
             logging.info('Deleted sidecar, no records to collect.')
         else:
             logging.info('Finished creating sidecar in %s',
                          str(timedelta(seconds=(time.time() - start))))
             logging.info('Determined sidecar information for %s response/resource record(s)',
-                         record_count)
+                         records_written)
     mime_type_records = text_mime + non_text
     print('Records with Mime Types: ' + str(mime_type_records))
-    logging.info('Total Records for this WARC file: %s', total_records)
-    print('Total Records for this WARC file:', total_records)
-    return (meta_file_path, total_records, mime_type_records)
+    logging.info('Total Records for this WARC file: %s', total_records_read)
+    print('Total Records for this WARC file:', total_records_read)
+    return (meta_file_path, total_records_read, mime_type_records)
 
 
 def main():
