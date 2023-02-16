@@ -19,6 +19,7 @@ DNS_TEST_FILE = os.path.join(TEST_DIR, 'dns.warc')
 IMAGE_TEST_FILE = os.path.join(TEST_DIR, 'gif.warc')
 REVISIT_TEST_FILE = os.path.join(TEST_DIR, 'revisit.warc')
 ARC_TEST_FILE = os.path.join(TEST_DIR, 'text.arc')
+DIGEST_TEST_FILE = os.path.join(TEST_DIR, 'digest_multiples.warc')
 
 RECORD1 = {'url': 'https://www.unt.edu',
            'payload': io.BytesIO(b'<!DOCTYPE html>\n<!--[if IE 8]>\n'
@@ -77,7 +78,7 @@ def test_unknown_language():
 
 
 @patch('soft404.probability', return_value='0.978654321')
-def test_determine_sof404(m_soft404):
+def test_determine_soft404(m_soft404):
     soft404_page = b'<h1>Page Not Found<h1>'
     detected = sidecar.determine_soft404(soft404_page)
     m_soft404.assert_called_once()
@@ -116,10 +117,14 @@ class Test_Warc_Metadata_Sidecar:
     @patch('warc_metadata_sidecar.WARCWriter')
     def test_metadata_sidecar(self, mock_warcwriter, m_warcinfo, m_create_payload, m_lang,
                               m_charset, m_find_mime, m_soft404, caplog, tmpdir):
+        # Get record digest to test DIGEST_CACHE
+        with open(TEXT_TEST_FILE, 'rb') as stream:
+            for record in ArchiveIterator(stream):
+                record_digest = record.rec_headers.get_header('WARC-Payload-Digest')
         caplog.set_level(INFO)
         writer = mock_warcwriter.return_value
         m_find_mime.return_value = ({'fido': 'text/html'}, 'fmt/471')
-        sidecar.metadata_sidecar(str(tmpdir), TEXT_TEST_FILE)
+        metadata_sidecar_return = sidecar.metadata_sidecar(str(tmpdir), TEXT_TEST_FILE)
         assert 'Logging WARC metadata record information for %s', TEXT_TEST_FILE in caplog.text
         assert 'Determined sidecar information for 1 response/resource record(s)' in caplog.text
         assert tmpdir / 'text.warc.meta.gz' in tmpdir.listdir()
@@ -133,18 +138,21 @@ class Test_Warc_Metadata_Sidecar:
         m_charset.assert_called_once()
         m_find_mime.assert_called_once()
         m_soft404.assert_called_once()
+        assert metadata_sidecar_return == (tmpdir / 'text.warc.meta.gz', 1, 1)
+        assert record_digest in sidecar.DIGEST_CACHE
 
     @patch('warc_metadata_sidecar.WARCWriter')
     def test_metadata_sidecar_dns_record(self, mock_warcwriter, caplog, tmpdir):
         caplog.set_level(INFO)
         writer = mock_warcwriter.return_value
         m_create_warc_record = writer.create_warc_record
-        sidecar.metadata_sidecar(str(tmpdir), DNS_TEST_FILE)
+        metadata_sidecar_return = sidecar.metadata_sidecar(str(tmpdir), DNS_TEST_FILE)
         assert 'Logging WARC metadata record information for %s', DNS_TEST_FILE in caplog.text
         assert 'Deleted sidecar, no records to collect.' in caplog.text
         assert tmpdir / 'dns.warc.meta.gz' not in tmpdir.listdir()
         mock_warcwriter.assert_called_once()
         m_create_warc_record.assert_not_called()
+        assert metadata_sidecar_return == (tmpdir / 'dns.warc.meta.gz', 1, 0)
 
     @patch('warc_metadata_sidecar.find_character_set')
     @patch('warc_metadata_sidecar.find_language')
@@ -155,7 +163,7 @@ class Test_Warc_Metadata_Sidecar:
         img_payload = '{0} {1}\n{2} {3}'.format(
                             sidecar.MIME_TITLE, mime_dict,
                             sidecar.PUID_TITLE, puid).encode('utf-8')
-        sidecar.metadata_sidecar(str(tmpdir), IMAGE_TEST_FILE)
+        metadata_sidecar_return = sidecar.metadata_sidecar(str(tmpdir), IMAGE_TEST_FILE)
         mock_language.assert_not_called()
         mock_character.assert_not_called()
         mock_404.assert_not_called()
@@ -166,22 +174,61 @@ class Test_Warc_Metadata_Sidecar:
                 if record.rec_type == 'metadata':
                     payload = record.content_stream().read()
         assert payload == img_payload
+        assert metadata_sidecar_return == (tmpdir / 'gif.warc.meta.gz', 1, 1)
 
     @patch('warc_metadata_sidecar.WARCWriter')
     def test_metadata_sidecar_revisit_record(self, mock_warcwriter, caplog, tmpdir):
         caplog.set_level(INFO)
-        sidecar.metadata_sidecar(str(tmpdir), REVISIT_TEST_FILE)
+        metadata_sidecar_return = sidecar.metadata_sidecar(str(tmpdir), REVISIT_TEST_FILE)
         assert 'Logging WARC metadata record information for %s', REVISIT_TEST_FILE in caplog.text
         assert 'Deleted sidecar, no records to collect.' in caplog.text
         assert tmpdir / 'revist.warc.meta.gz' not in tmpdir.listdir()
         mock_warcwriter.assert_called_once()
+        assert metadata_sidecar_return == (tmpdir / 'revisit.warc.meta.gz', 1, 0)
 
     def test_arc_record_has_no_concurrent_or_warcinfo_id(self, tmpdir):
-        sidecar.metadata_sidecar(str(tmpdir), ARC_TEST_FILE)
+        metadata_sidecar_return = sidecar.metadata_sidecar(str(tmpdir), ARC_TEST_FILE)
         path = os.path.join(tmpdir / 'text.warc.meta.gz')
         assert path in tmpdir.listdir()
+        assert metadata_sidecar_return == (tmpdir / 'text.warc.meta.gz', 2, 1)
         with open(path, 'rb') as stream:
             for record in ArchiveIterator(stream):
                 if record.rec_type == 'metadata':
                     assert record.rec_headers.get_header('WARC-Concurrent-ID') is None
                     assert record.rec_headers.get_header('WARC-Warcinfo-ID') is None
+
+    @patch('warc_metadata_sidecar.determine_soft404')
+    @patch('warc_metadata_sidecar.find_mime_and_puid')
+    @patch('warc_metadata_sidecar.find_character_set')
+    @patch('warc_metadata_sidecar.find_language')
+    @patch('warc_metadata_sidecar.create_string_payload', return_value='payload')
+    @patch('warc_metadata_sidecar.create_warcinfo_payload')
+    @patch('warc_metadata_sidecar.WARCWriter')
+    def test_digest_multiples_use_cache(self, mock_warcwriter, m_warcinfo, m_create_payload,
+                                        m_lang, m_charset, m_find_mime, m_soft404, caplog,
+                                        tmpdir):
+        # Clear the cache from previous tests
+        sidecar.DIGEST_CACHE = {}
+        # Get record digest from file to test DIGEST_CACHE
+        digest_list = []
+        with open(DIGEST_TEST_FILE, 'rb') as stream:
+            for record in ArchiveIterator(stream):
+                digest = record.rec_headers.get_header('WARC-Payload-Digest')
+                if digest and digest not in digest_list:
+                    digest_list.append(digest)
+        caplog.set_level(INFO)
+        writer = mock_warcwriter.return_value
+        m_find_mime.side_effect = [({'python-magic': 'image/gif'}, None),
+                                   ({'python-magic': 'text/plain'}, None)]
+        metadata_sidecar_return = sidecar.metadata_sidecar(str(tmpdir), DIGEST_TEST_FILE)
+        assert m_warcinfo.call_count == 1
+        assert m_create_payload.call_count == 2
+        assert m_lang.call_count == 1
+        assert m_charset.call_count == 1
+        assert m_find_mime.call_count == 2
+        assert m_soft404.call_count == 0
+        assert 'Determined sidecar information for 4 response/resource record(s)' in caplog.text
+        assert writer.write_record.call_count == 5
+        assert metadata_sidecar_return == (tmpdir / 'digest_multiples.warc.meta.gz', 5, 4)
+        for digest in digest_list:
+            assert digest in sidecar.DIGEST_CACHE
