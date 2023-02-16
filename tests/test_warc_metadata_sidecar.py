@@ -78,7 +78,7 @@ def test_unknown_language():
 
 
 @patch('soft404.probability', return_value='0.978654321')
-def test_determine_sof404(m_soft404):
+def test_determine_soft404(m_soft404):
     soft404_page = b'<h1>Page Not Found<h1>'
     detected = sidecar.determine_soft404(soft404_page)
     m_soft404.assert_called_once()
@@ -218,12 +218,13 @@ class Test_Warc_Metadata_Sidecar:
                     digest_list.append(digest)
         caplog.set_level(INFO)
         writer = mock_warcwriter.return_value
-        m_find_mime.return_value = ({'python-magic': 'text/plain'}, None)
+        m_find_mime.side_effect = [({'python-magic': 'image/gif'}, None),
+                                   ({'python-magic': 'text/plain'}, None)]
         metadata_sidecar_return = sidecar.metadata_sidecar(str(tmpdir), DIGEST_TEST_FILE)
         assert m_warcinfo.call_count == 1
         assert m_create_payload.call_count == 2
-        assert m_lang.call_count == 2
-        assert m_charset.call_count == 2
+        assert m_lang.call_count == 1
+        assert m_charset.call_count == 1
         assert m_find_mime.call_count == 2
         assert m_soft404.call_count == 0
         assert 'Determined sidecar information for 4 response/resource record(s)' in caplog.text
