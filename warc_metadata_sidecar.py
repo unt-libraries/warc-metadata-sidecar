@@ -281,15 +281,21 @@ def metadata_sidecar(archive_dir, warc_file, operator=None, publisher=None):
                                                     warc_headers_dict=warc_dict
                                                     )
             writer.write_record(meta_record)
-        # Delete sidecar file if we do not collect any records.
+        # Rewrite sidecar file if there are no metadata sidecar records to write.
         if not records_written:
             os.remove(meta_file_path)
-            logging.info('Deleted sidecar, no records to collect.')
-        else:
-            logging.info('Finished creating sidecar in %s',
-                         str(timedelta(seconds=(time.time() - start))))
-            logging.info('Determined sidecar information for %s response/resource record(s)',
-                         records_written)
+            logging.info('No metadata records to write, updating warcinfo')
+            with open(meta_file_path, 'ab') as output:
+                writer = WARCWriter(output, gzip=True)
+                warc_info['description'] += '; 0 metadata sidecar records'
+                # Create warcinfo record and write it into sidecar.
+                warcinfo_record = writer.create_warcinfo_record(meta_file, warc_info)
+                writer.write_record(warcinfo_record)
+
+        logging.info('Finished creating sidecar in %s',
+                     str(timedelta(seconds=(time.time() - start))))
+        logging.info('Determined sidecar information for %s response/resource record(s)',
+                     records_written)
     mime_type_records = text_mime + non_text
     print('Records with Mime Types: ' + str(mime_type_records))
     logging.info('Total Records for this WARC file: %s', total_records_read)

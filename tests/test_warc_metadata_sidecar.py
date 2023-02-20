@@ -141,17 +141,15 @@ class Test_Warc_Metadata_Sidecar:
         assert metadata_sidecar_return == (tmpdir / 'text.warc.meta.gz', 1, 1)
         assert record_digest in sidecar.DIGEST_CACHE
 
-    @patch('warc_metadata_sidecar.WARCWriter')
-    def test_metadata_sidecar_dns_record(self, mock_warcwriter, caplog, tmpdir):
+    def test_metadata_sidecar_dns_record(self, caplog, tmpdir):
         caplog.set_level(INFO)
-        writer = mock_warcwriter.return_value
-        m_create_warc_record = writer.create_warc_record
         metadata_sidecar_return = sidecar.metadata_sidecar(str(tmpdir), DNS_TEST_FILE)
         assert 'Logging WARC metadata record information for %s', DNS_TEST_FILE in caplog.text
-        assert 'Deleted sidecar, no records to collect.' in caplog.text
-        assert tmpdir / 'dns.warc.meta.gz' not in tmpdir.listdir()
-        mock_warcwriter.assert_called_once()
-        m_create_warc_record.assert_not_called()
+        assert 'No metadata records to write, updating warcinfo' in caplog.text
+        assert 'Determined sidecar information for 0 response/resource record(s)' in caplog.text
+        with open(os.path.join(tmpdir, 'dns.warc.meta.gz'), 'rb') as stream:
+            for record in ArchiveIterator(stream):
+                assert b'; 0 metadata sidecar records' in record.raw_stream.read()
         assert metadata_sidecar_return == (tmpdir / 'dns.warc.meta.gz', 1, 0)
 
     @patch('warc_metadata_sidecar.find_character_set')
@@ -176,14 +174,15 @@ class Test_Warc_Metadata_Sidecar:
         assert payload == img_payload
         assert metadata_sidecar_return == (tmpdir / 'gif.warc.meta.gz', 1, 1)
 
-    @patch('warc_metadata_sidecar.WARCWriter')
-    def test_metadata_sidecar_revisit_record(self, mock_warcwriter, caplog, tmpdir):
+    def test_metadata_sidecar_revisit_record(self, caplog, tmpdir):
         caplog.set_level(INFO)
         metadata_sidecar_return = sidecar.metadata_sidecar(str(tmpdir), REVISIT_TEST_FILE)
         assert 'Logging WARC metadata record information for %s', REVISIT_TEST_FILE in caplog.text
-        assert 'Deleted sidecar, no records to collect.' in caplog.text
-        assert tmpdir / 'revist.warc.meta.gz' not in tmpdir.listdir()
-        mock_warcwriter.assert_called_once()
+        assert 'No metadata records to write, updating warcinfo' in caplog.text
+        assert 'Determined sidecar information for 0 response/resource record(s)' in caplog.text
+        with open(os.path.join(tmpdir, 'revisit.warc.meta.gz'), 'rb') as stream:
+            for record in ArchiveIterator(stream):
+                assert b'; 0 metadata sidecar records' in record.raw_stream.read()
         assert metadata_sidecar_return == (tmpdir / 'revisit.warc.meta.gz', 1, 0)
 
     def test_arc_record_has_no_concurrent_or_warcinfo_id(self, tmpdir):
