@@ -29,7 +29,7 @@ def get_alpha3_language_codes(lang_list):
 
 def get_sidecar_fields(original_obj, meta_obj):
     """Collect the sidecar fields and add them to the original WARC dict.
-    
+
     Sidecar fields to collect: mime, puid, charset, languages, and soft404
     """
     if meta_obj.get('Identified-Payload-Type'):

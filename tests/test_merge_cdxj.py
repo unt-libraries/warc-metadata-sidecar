@@ -77,7 +77,7 @@ def test_get_all_sidecar_fields(m_alpha):
     actual = merge_cdxj.get_sidecar_fields(original_obj, meta_obj)
     assert actual['mime-detected'] != 'application/xhtml+xml'
     assert actual == {'mime': 'text/html', 'mime-detected': 'text/html', 'puid': 'fmt/102',
-                      'charset': 'ascii', 'languages': 'eng', 
+                      'charset': 'ascii', 'languages': 'eng',
                       'soft-404-detected': 0.03782088786303804}
     m_alpha.assert_called_once_with(lang_list)
 
