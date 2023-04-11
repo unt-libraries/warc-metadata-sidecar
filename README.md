@@ -58,7 +58,7 @@ For usage instructions run:
 
 Example:
 
-    $ merge_cdxj.py sidecar.cdxj original.cdxj directory_name
+    $ merge_cdxj.py -m sidecar.cdxj -w original.cdxj -d directory_name
 
 ## Testing
 
