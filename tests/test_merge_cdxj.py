@@ -32,8 +32,8 @@ META_DICT = {'com,example) 20091111212121':
 
 MERGED_LIST = ['com,example) 20091111212121 {"url": "http://www.example.com", '
                '"mime": "text/html", "mime-detected": "text/html", '
-               '"charset": "ascii", "languages": "eng", '
-               '"soft-404-detected": 0.08195022044249829}\n']
+               '"puid": "fmt/96", "charset": "ascii", '
+               '"languages": "eng", "soft-404-detected": 0.08195022044249829}\n']
 
 META_FILE = io.StringIO('com,example) 20091111212121 {"Identified-Payload-Type": \
                                 {"fido": "text/html", "python-magic": "text/html"}, \
@@ -76,8 +76,9 @@ def test_get_all_sidecar_fields(m_alpha):
                 'Soft-404-Detected': 0.03782088786303804}
     actual = merge_cdxj.get_sidecar_fields(original_obj, meta_obj)
     assert actual['mime-detected'] != 'application/xhtml+xml'
-    assert actual == {'mime': 'text/html', 'mime-detected': 'text/html', 'charset': 'ascii',
-                      'languages': 'eng', 'soft-404-detected': 0.03782088786303804}
+    assert actual == {'mime': 'text/html', 'mime-detected': 'text/html', 'puid': 'fmt/102',
+                      'charset': 'ascii', 'languages': 'eng',
+                      'soft-404-detected': 0.03782088786303804}
     m_alpha.assert_called_once_with(lang_list)
 
 
@@ -87,7 +88,7 @@ def test_get_sidecar_fields(m_alpha):
     meta_obj = {'Identified-Payload-Type': {'fido': 'image/gif'},
                 'Preservation-Identifier': 'fmt/4'}
     actual = merge_cdxj.get_sidecar_fields(original_obj, meta_obj)
-    assert actual == {'mime': 'image/gif', 'mime-detected': 'image/gif'}
+    assert actual == {'mime': 'image/gif', 'mime-detected': 'image/gif', 'puid': 'fmt/4'}
     m_alpha.assert_not_called()
 
 
@@ -137,10 +138,12 @@ def test_merge_meta_fields_with_duplicate(m_alpha):
                        '"mime": "text/xml"}\n', newline='\n')
     merged_list = ['com,example) 20091111212121 {"url": "http://www.example.com", '
                    '"mime": "text/html", "mime-detected": "text/html", '
+                   '"puid": "fmt/96", '
                    '"charset": "ascii", "languages": "eng", '
                    '"soft-404-detected": 0.08195022044249829}\n',
                    'com,example) 20091111212121 {"url": "http://www.example.com", '
                    '"mime": "text/xml", "mime-detected": "text/html", '
+                   '"puid": "fmt/96", '
                    '"charset": "ascii", "languages": "eng", '
                    '"soft-404-detected": 0.08195022044249829}\n']
     original, edited, non_edited = merge_cdxj.merge_meta_fields(META_DICT, cdxj)
@@ -168,8 +171,9 @@ def test_merge_cdxj2(m_merge_meta, m_create_dict, caplog, tmpdir):
     meta_file = os.path.join(test_dir, 'meta.cdxj')
     cdxj_file = os.path.join(test_dir, 'warc_1.cdxj')
     expected = ['com,example) 20091111212121 {"url": "http://www.example.com", '
-                '"mime": "text/html", "mime-detected": "text/html", "charset": "ascii", '
-                '"languages": "eng", "soft-404-detected": 0.08195022044249829}\n']
+                '"mime": "text/html", "mime-detected": "text/html", "puid": "fmt/96", '
+                '"charset": "ascii", "languages": "eng", '
+                '"soft-404-detected": 0.08195022044249829}\n']
     caplog.set_level(INFO)
     m_create_dict.return_value = META_DICT
     m_merge_meta.return_value = MERGED_LIST, 1, 0

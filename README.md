@@ -48,7 +48,7 @@ Example:
 ## merge_cdxj.py
 
 This script will take a CDXJ from an original WARC and a metadata sidecar CDXJ, find the matching URI and
-timestamp from each file, collect certain fields from the metadata sidecar CDXJ (mime type,
+timestamp from each file, collect certain fields from the metadata sidecar CDXJ (mime type, puid,
 charset, language, and soft-404), merge those fields with the original CDXJ data, and put the
 merged data into a new CDXJ.
 
@@ -58,7 +58,7 @@ For usage instructions run:
 
 Example:
 
-    $ merge_cdxj.py sidecar.cdxj original.cdxj directory_name
+    $ merge_cdxj.py -m sidecar.cdxj -w original.cdxj -d directory_name
 
 ## Testing
 

@@ -28,7 +28,10 @@ def get_alpha3_language_codes(lang_list):
 
 
 def get_sidecar_fields(original_obj, meta_obj):
-    """Collect the mime, charset, languages, and soft404 to add them to the original WARC dict."""
+    """Collect the sidecar fields and add them to the original WARC dict.
+
+    Sidecar fields to collect: mime, puid, charset, languages, and soft404
+    """
     if meta_obj.get('Identified-Payload-Type'):
         # Choosing python-magic over fido, due to broader choices.
         if meta_obj['Identified-Payload-Type'].get('python-magic'):
@@ -36,6 +39,9 @@ def get_sidecar_fields(original_obj, meta_obj):
         else:
             mime = meta_obj['Identified-Payload-Type']['fido']
         original_obj['mime-detected'] = mime
+    if meta_obj.get('Preservation-Identifier'):
+        puid = meta_obj['Preservation-Identifier']
+        original_obj['puid'] = puid
     if meta_obj.get('Charset-Detected'):
         charset = meta_obj['Charset-Detected']['encoding']
         original_obj['charset'] = charset
